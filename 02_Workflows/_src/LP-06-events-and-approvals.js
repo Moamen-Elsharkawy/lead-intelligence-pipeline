@@ -216,6 +216,23 @@ const lead = $('Read Lead').all().map(i => i.json)
   .find(r => r && r.lead_uid === e.lead_uid && r.source !== undefined);
 if (!lead) return bad(404, 'no lead with id ' + e.lead_uid);
 
+// A decision already recorded ON THE LEAD ends it, regardless of what the
+// ledger says. The ledger check below is the general mechanism and it is
+// correct, but it is a check on a row written by a later node - so two clicks
+// a second apart can both read "no claim yet" and both apply. This one reads
+// state the FIRST decision already wrote, so it cannot be raced the same way.
+//
+// It matters because the failure is ugly: a manager rejects a VIP, someone
+// then clicks the stale approve link in the same email, and a lead that was
+// deliberately killed is resurrected and messaged. Changing a decision should
+// be a deliberate act with its own trail, never an accident of a double click.
+if (e.kind === 'approval' && lead.approval_state && lead.approval_state !== 'pending' && lead.approval_state !== 'not_required') {
+  return [{ json: { ...e, ok: false, status: 409,
+    reason: 'this lead was already ' + lead.approval_state + (lead.approval_by ? ' by ' + lead.approval_by : '') +
+      '. Reverse it deliberately if that is the intent; a second decision is not applied automatically.',
+    duplicate: true, apply: false, cancel_jobs: false, odoo_change: false, requalify: false } }];
+}
+
 const claim = $('Read Event Claim').all().map(i => i.json)
   .find(r => r && r.idem_key === e.idem_key && r.scope !== undefined);
 if (claim && claim.state === 'done') {
@@ -506,6 +523,8 @@ return targets.map(j => ({ json: {
             company: '={{ $json.lead_row.company }}',
             domain: '={{ $json.lead_row.domain }}',
             service_interest: '={{ $json.lead_row.service_interest }}',
+            urgency: '={{ $json.lead_row.urgency }}',
+            budget_band: '={{ $json.lead_row.budget_band }}',
             free_text: '={{ $json.lead_row.free_text }}',
             consent: '={{ $json.lead_row.consent }}',
             consent_source: '={{ $json.lead_row.consent_source }}',
@@ -544,17 +563,24 @@ return targets.map(j => ({ json: {
         operation: 'upsert',
         dataTableId: { __rl: true, mode: 'name', value: 'lp_idem' },
         matchType: 'allConditions',
-        filters: { conditions: [{ keyName: 'idem_key', condition: 'eq', keyValue: '={{ $json.idem_key }}' }] },
+        // Every field reads $('Decide Effect'), never $json. This node used to
+        // hang off the gate, where $json WAS the decision; it now sits behind
+        // the lead write, whose output is a Data Table row with no idem_key on
+        // it. Left as $json the claim was written with an empty key, so the
+        // duplicate check downstream found nothing and a booking delivered
+        // twice was applied twice. Caught by EC-11 within minutes of the
+        // rewiring, which is the entire argument for keeping that suite green.
+        filters: { conditions: [{ keyName: 'idem_key', condition: 'eq', keyValue: "={{ $('Decide Effect').first().json.idem_key }}" }] },
         columns: {
           mappingMode: 'defineBelow',
           value: {
-            idem_key: '={{ $json.idem_key }}',
-            scope: '={{ $json.kind === "approval" ? "approval" : ($json.type === "booking" ? "booking" : "event") }}',
-            lead_uid: '={{ $json.lead_uid }}',
+            idem_key: "={{ $('Decide Effect').first().json.idem_key }}",
+            scope: '={{ $(\'Decide Effect\').first().json.kind === "approval" ? "approval" : ($(\'Decide Effect\').first().json.type === "booking" ? "booking" : "event") }}',
+            lead_uid: "={{ $('Decide Effect').first().json.lead_uid }}",
             state: 'done',
-            result_ref: '={{ $json.type }}',
-            claimed_at: '={{ $json.now }}',
-            completed_at: '={{ $json.now }}',
+            result_ref: "={{ $('Decide Effect').first().json.type }}",
+            claimed_at: "={{ $('Decide Effect').first().json.now }}",
+            completed_at: "={{ $('Decide Effect').first().json.now }}",
             attempts: 1,
           },
           matchingColumns: ['idem_key'],
@@ -785,7 +811,13 @@ return targets.map(j => ({ json: {
     // cancellation and the Odoo write are belt-and-braces and stay behind the
     // response, which keeps it fast.
     ['Applies?', 'Apply To Lead', 0],
-    ['Apply To Lead', 'Build Event Response'],
+    // The claim goes in front of the response too, for the same reason the lead
+    // write does. The claim is what makes a second delivery a no-op, so if the
+    // 200 goes out before it exists, the caller can act on that 200 and race it.
+    // Two nodes in front of the response, both cheap, both the difference
+    // between "accepted" and "this is now idempotent".
+    ['Apply To Lead', 'Claim Event'],
+    ['Claim Event', 'Build Event Response'],
     ['Applies?', 'Build Event Response', 1], // nothing to apply: answer and stop
     ['Build Event Response', 'Respond Event'],
 
@@ -793,7 +825,6 @@ return targets.map(j => ({ json: {
     ['Read Lead Jobs', 'Cancel Jobs'],
     ['Cancel Jobs', 'Write Cancelled Jobs'],
 
-    ['Applies?', 'Claim Event', 0],
     ['Applies?', 'Write Event Audit', 0],
     ['Applies?', 'Odoo Change?', 0],
     ['Odoo Change?', 'Apply Odoo Change', 0],

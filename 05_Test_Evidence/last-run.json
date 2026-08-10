@@ -1,30 +1,34 @@
 {
   "instance": "https://moamen.dsoqi.online",
-  "run_id": "02189170",
+  "suite": "Edge cases",
   "results": [
     {
       "n": 1,
+      "group": "EC",
       "title": "Same person from two sources within 2 minutes -> one opportunity, second merged",
       "status": "PASS",
-      "detail": "two deliveries (LP-20260810-14FE9EA8, LP-20260810-EE136E5B), one Odoo opportunity #45; second marked merged into LP-20260810-14FE9EA8, opp count for it = 1",
-      "secs": 12
+      "detail": "two deliveries (LP-20260810-10A936FF, LP-20260810-5DCE5846), one Odoo opportunity #45; second marked merged into LP-20260810-10A936FF, opp count for it = 1",
+      "secs": 13
     },
     {
       "n": 2,
+      "group": "EC",
       "title": "Phone formatted differently in each source -> recognised as one person",
       "status": "PASS",
-      "detail": "\"+20 10189170\" and \"002010189170\" both -> phone_key 2010189170; second merged into opportunity #46",
+      "detail": "\"+20 10114842\" and \"002010114842\" both -> phone_key 2010114842; second merged into opportunity #46",
       "secs": 13
     },
     {
       "n": 3,
+      "group": "EC",
       "title": "Enrichment times out twice, then succeeds",
       "status": "PASS",
       "detail": "enrichment status \"ok\", lead still scored 100 and reached Odoo #47",
-      "secs": 28
+      "secs": 27
     },
     {
       "n": 4,
+      "group": "EC",
       "title": "AI returns nothing usable -> lead completes on rules alone",
       "status": "PASS",
       "detail": "ai_status=unavailable, score still 100 (vip), Odoo #48. The AI contributes zero points, so the fallback changed nothing.",
@@ -32,69 +36,79 @@
     },
     {
       "n": 5,
+      "group": "EC",
       "title": "AI and rules disagree materially -> manual review, neither side wins",
       "status": "PASS",
       "detail": "rules said unqualified (38), model said high at 0.95 -> manual_review, Odoo stage \"Manual Review\"",
-      "secs": 6
+      "secs": 5
     },
     {
       "n": 6,
+      "group": "EC",
       "title": "Rate-limited dependency -> backoff, honours Retry-After, then succeeds",
       "status": "PASS",
-      "detail": "429 absorbed, enrichment ok, lead scored 100 and reached Odoo #50 in 9s",
-      "secs": 10
+      "detail": "429 absorbed, enrichment ok, lead scored 100 and reached Odoo #50 in 7s",
+      "secs": 7
     },
     {
       "n": 7,
+      "group": "EC",
       "title": "CRM write succeeded but the acknowledgement was lost -> repaired, not duplicated",
       "status": "PASS",
       "detail": "ledger rewound to \"claimed\", replayed -> still exactly 1 opportunity (#51); ledger repaired to \"done\" with ref 51",
-      "secs": 16
+      "secs": 15
     },
     {
       "n": 8,
+      "group": "EC",
       "title": "The same message is dispatched twice -> sent once",
       "status": "PASS",
-      "detail": "1 message_sent, 1 suppressed on the re-dispatch (\"already sent, provider ref 19feddfaaf91c2de\")",
-      "secs": 16
+      "detail": "1 message_sent, 1 suppressed on the re-dispatch (\"already sent, provider ref 19fee1877e1cfcff\")",
+      "secs": 18
     },
     {
       "n": 9,
+      "group": "EC",
       "title": "Owner becomes unavailable after assignment -> reassigned by the tick",
       "status": "PASS",
-      "detail": "owner sales-01 marked unavailable -> tick reassigned LP-20260810-CABCAAE8 to sales-03 (rung 2)",
+      "detail": "owner sales-01 marked unavailable -> tick reassigned LP-20260810-700FD20C to sales-03 (rung 2)",
       "secs": 9
     },
     {
       "n": 10,
+      "group": "EC",
       "title": "Opt-out lands while a follow-up is scheduled -> the follow-up never goes out",
       "status": "PASS",
       "detail": "4 job(s) cancelled (opted_out), consent=denied, no follow-up sent, Odoo opportunity active=false",
-      "secs": 19
+      "secs": 18
     },
     {
       "n": 11,
+      "group": "EC",
       "title": "The booking webhook is delivered twice -> booked once",
       "status": "PASS",
-      "detail": "two deliveries of bk_02189170_dup: first applied (stage \"Meeting Booked\"), second answered 200 duplicate:true; 1 audit event",
+      "detail": "two deliveries of bk_05914842_dup: first applied (stage \"Meeting Booked\"), second answered 200 duplicate:true; 1 audit event",
       "secs": 7
     },
     {
       "n": 12,
+      "group": "EC",
       "title": "Manager rejects a VIP -> everything outbound stops",
       "status": "PASS",
       "detail": "stage before: Awaiting Approval, no message reached the lead; after reject: status=closed, 1 job(s) cancelled, Odoo active=false",
-      "secs": 14
+      "secs": 13
     },
     {
       "n": 13,
+      "group": "EC",
       "title": "One corrupted row in a CSV -> quarantined alone, the rest import",
       "status": "PASS",
-      "detail": "4 rows in: 2 imported (LP-20260810-F3D20D0A, LP-20260810-8DFA078E), 2 quarantined - \"line 3: expected 8 columns, found 3\" / \"line 5: no valid email and no valid phone - nothing to contact\"; 2 dead letter(s) hold the original row text",
+      "detail": "4 rows in: 2 imported (LP-20260810-BD831EE4, LP-20260810-6A292EC4), 2 quarantined - \"line 3: expected 8 columns, found 3\" / \"line 5: no valid email and no valid phone - nothing to contact\"; 2 dead letter(s) hold the original row text",
       "secs": 2
     },
     {
       "n": 14,
+      "group": "EC",
       "title": "Manual re-run after a partial success -> completed steps are skipped",
       "status": "PASS",
       "detail": "replay reported odoo_already_created=true, skipped [\"odoo_upsert\",\"message\"]; opportunity count unchanged at 1 (#59); dead letter now \"replayed\"",
@@ -102,10 +116,11 @@
     },
     {
       "n": 15,
+      "group": "EC",
       "title": "Business rule 7: no sales action within the SLA -> escalated and reassigned",
       "status": "PASS",
-      "detail": "timer scheduled at +1799s (rule says 1800); on breach: audit \"sla step 0 -> sent\", job state \"sent\", owner was sales-01 at stage \"Qualified\"",
-      "secs": 8
+      "detail": "timer scheduled at +1798s (rule says 1800); on breach: audit \"sla step 0 -> sent\", job state \"sent\", owner was sales-01 at stage \"Qualified\"",
+      "secs": 9
     }
   ]
 }

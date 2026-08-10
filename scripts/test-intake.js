@@ -12,6 +12,7 @@
  */
 const C = require('../02_Workflows/_shared/constants.js');
 const I = require('../02_Workflows/_shared/intake.js');
+const S = require('../02_Workflows/_shared/scorer.js');
 
 let pass = 0;
 let fail = 0;
@@ -242,6 +243,55 @@ section('The WhatsApp scoring hole, checked end to end');
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+section('Arabic, which the word-boundary patterns silently could not see');
+// ---------------------------------------------------------------------------
+// A leading `\b` in front of an Arabic word matches NOTHING. `\b` is defined by
+// `\w`, and in a non-unicode JavaScript regex `\w` is [A-Za-z0-9_] only, so an
+// Arabic letter can never form a boundary. The Arabic terms started life inside
+// the same `\b(...)` group as the English ones, which meant every Arabic
+// enquiry scored `service: unknown` - 5 points instead of 25 - and never had
+// its urgency detected.
+//
+// Nothing in the English tests could see it, and nothing in the live suite
+// could either until a case was written in Arabic. For a business whose core
+// market is Egypt, that was most of the inbound scoring 20 points low.
+{
+  check('a bare \\b cannot match an Arabic word at all', /\b(أتمتة)/.test('محتاجين أتمتة'), false);
+  check('  ...which is why the Arabic patterns carry no \\b', /(أتمتة)/.test('محتاجين أتمتة'), true);
+
+  const cases = [
+    ['محتاجين أتمتة للعمليات عندنا ضروري', 'automation', 'immediate'],
+    ['عايزين شات بوت قريب', 'ai_agent', 'this_quarter'],
+    ['محتاجين ربط الأنظمة بتاعتنا', 'integration', 'unknown'],
+    ['عايز تدريب للفريق', 'training', 'unknown'],
+    ['بس بستكشف الموضوع', 'unknown', 'exploring'],
+    ['محتاجين حل عاجل النهاردة', 'unknown', 'immediate'],
+  ];
+  for (const [text, service, urgency] of cases) {
+    check(`"${text}" -> service`, I.normService('', text), service);
+    check(`"${text}" -> urgency`, I.normUrgency('', text), urgency);
+  }
+
+  // And the English patterns must not have been weakened by the split.
+  check('English automation still matches', I.normService('', 'we need workflow automation'), 'automation');
+  check('English urgency still matches', I.normUrgency('', 'we need this urgently'), 'immediate');
+  check('a stem still needs no closing boundary', I.normService('', 'looking at integrations'), 'integration');
+
+  // A full Arabic lead must score like its English twin, not 20 points below.
+  const ar = I.finalizeLead({
+    source: 'website', source_ref: 'ar-1', full_name: 'محمد عبد الرحمن',
+    email: 'm@nilecargo.com', phone: '+20 100 555 1234', company: 'النيل للشحن',
+    service_interest: '', free_text: 'محتاجين أتمتة للعمليات عندنا ضروري', consent: 'true',
+  }, { now: 1786400000 });
+  check('an Arabic lead resolves its service', ar.service_interest, 'automation');
+  check('  ...and its urgency', ar.urgency, 'immediate');
+  const arScore = S.scoreLead(ar, { company_size: 180, industry: 'logistics', country: 'EG', strategic: false });
+  const enScore = S.scoreLead({ ...ar, free_text: 'we need automation urgently', service_interest: 'automation', urgency: 'immediate' },
+    { company_size: 180, industry: 'logistics', country: 'EG', strategic: false });
+  check('an Arabic lead scores the same as its English twin', arScore.score, enScore.score);
+}
+
 section('Injection and hostile input');
 // ---------------------------------------------------------------------------
 {

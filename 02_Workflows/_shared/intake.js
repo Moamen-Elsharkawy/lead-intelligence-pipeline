@@ -119,7 +119,12 @@ function isoFrom(raw) {
 const SERVICE_PATTERNS = [
   [/\b(rag|knowledge ?base|document (search|q ?& ?a)|vector (db|search|store)|semantic search)\b/i, 'rag'],
   [/\b(chat ?bots?|ai ?agents?|voice ?agents?|assistants?|copilots?|llms?)\b/i, 'ai_agent'],
-  [/\b(automat\w*|n8n|zapier|make\.com|workflows?|أتمتة)/i, 'automation'],
+  [/\b(automat\w*|n8n|zapier|make\.com|workflows?)/i, 'automation'],
+  [/(أتمتة|اتمتة|أتمته|أوتوميشن|اوتوميشن)/, 'automation'],
+  [/(شات ?بوت|مساعد ذكي|وكيل ذكاء)/, 'ai_agent'],
+  [/(ربط|تكامل|دمج أنظمة|دمج انظمة)/, 'integration'],
+  [/(استشار|خطة عمل)/, 'consulting'],
+  [/(تدريب|كورس|ورشة)/, 'training'],
   [/\b(integrat\w*|apis?|webhooks?|middleware|connectors?)\b/i, 'integration'],
   [/\b(web ?app|mobile ?app|portal|dashboard|platform|full[- ]?stack|saas|website)s?\b/i, 'custom_app'],
   [/\b(consult\w*|advis\w*|strateg\w*|roadmaps?)/i, 'consulting'],
@@ -138,9 +143,12 @@ function normService(raw, freeText) {
 // Same stem rule as SERVICE_PATTERNS above: "urgently" does not match
 // /\burgent\b/.
 const URGENCY_PATTERNS = [
-  [/\b(asap|urgent\w*|immediat\w*|right away|this week|by (monday|tuesday|wednesday|thursday|friday)|today|tonight|deadline|ضروري|حالا)/i, 'immediate'],
-  [/\b(this month|next month|this quarter|q[1-4] |within (a|one|two|2) months?|30 days|60 days|قريب)/i, 'this_quarter'],
+  [/\b(asap|urgent\w*|immediat\w*|right away|this week|by (monday|tuesday|wednesday|thursday|friday)|today|tonight|deadline)/i, 'immediate'],
+  [/(ضروري|حالا|حالاً|عاجل|بسرعة|في أقرب وقت|النهاردة|النهارده)/, 'immediate'],
+  [/\b(this month|next month|this quarter|q[1-4] |within (a|one|two|2) months?|30 days|60 days)/i, 'this_quarter'],
+  [/(قريب|الشهر ده|الشهر الجاي|خلال شهر|خلال شهرين)/, 'this_quarter'],
   [/\b(explor\w*|research\w*|just looking|curious|no rush|someday|in the future|later|eventually)/i, 'exploring'],
+  [/(بستكشف|بستفسر|مجرد استفسار|مش مستعجل|لسه بفكر)/, 'exploring'],
 ];
 
 function normUrgency(raw, freeText) {

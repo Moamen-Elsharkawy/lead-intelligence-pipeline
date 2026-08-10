@@ -19,25 +19,17 @@
  * The suite writes real leads and real Odoo opportunities into whatever
  * environment it is pointed at. It is meant for the demo sandbox.
  */
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import {
+  requireEnv, loadTables, requireMailRedirect, runSuite,
+  hook as rawHook, napi, rows, eq, upsert, config, setConfig, until, nap,
+  leadRow, auditFor, jobsFor, runTick, odoo, odooByUid, BASE,
+} from './_harness.mjs';
 
-const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+requireEnv();
 
-for (const line of fs.existsSync(path.join(ROOT, '.env'))
-  ? fs.readFileSync(path.join(ROOT, '.env'), 'utf8').split('\n') : []) {
-  const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
-  if (m && !/^\s*#/.test(line)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
-}
-
-const BASE = (process.env.N8N_API_URL || '').replace(/\/+$/, '');
-const KEY = process.env.N8N_API_KEY;
-const TOKEN = process.env.LP_WEBHOOK_TOKEN;
-if (!BASE || !KEY || !TOKEN) {
-  console.error('Set N8N_API_URL, N8N_API_KEY and LP_WEBHOOK_TOKEN in the repo-root .env first.');
-  process.exit(1);
-}
+// The harness takes its options as an object; these cases were written against
+// the older two-argument shape, so this keeps them readable.
+const hook = (pathname, body, query = '') => rawHook(pathname, body, { query });
 
 const RUN = String(Date.now()).slice(-8); // keeps each run's leads distinguishable
 // Phone numbers must be run-unique too. With a fixed number, a lead from an
@@ -47,124 +39,6 @@ const P6 = RUN.slice(-6);
 const phoneFor = (slot) => '+20 1' + slot + P6.slice(1);
 const waFor = (slot) => '201' + slot + P6.slice(1);
 const only = process.argv.slice(2).filter((a) => /^\d+$/.test(a)).map(Number);
-
-// --- plumbing ---------------------------------------------------------------
-
-const nap = (ms) => new Promise((r) => setTimeout(r, ms));
-
-async function hook(pathname, body, query = '') {
-  const res = await fetch(`${BASE}/webhook/${pathname}${query}`, {
-    method: 'POST',
-    headers: { 'X-LP-Token': TOKEN, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body ?? {}),
-  });
-  const text = await res.text();
-  let json;
-  try { json = text ? JSON.parse(text) : null; } catch { json = { raw: text.slice(0, 300) }; }
-  return { status: res.status, json };
-}
-
-async function napi(method, urlPath, body) {
-  const res = await fetch(`${BASE}/api/v1${urlPath}`, {
-    method,
-    headers: { 'X-N8N-API-KEY': KEY, 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const text = await res.text();
-  try { return { status: res.status, json: text ? JSON.parse(text) : null }; }
-  catch { return { status: res.status, json: { raw: text.slice(0, 300) } }; }
-}
-
-// Data Table REST, measured against this build (see odoo-api-probe.md):
-//   GET  /rows?filter={"type":"and","filters":[{columnName,condition,value}]}
-//   POST /rows          insert   {data:[{...}]}
-//   POST /rows/upsert   upsert   {filter, data}
-// There is no PATCH, no PUT and no DELETE - a row can be added or replaced,
-// never removed, through the public API.
-let TABLES = {};
-async function loadTables() {
-  const r = await napi('GET', '/data-tables?limit=100');
-  TABLES = Object.fromEntries((r.json?.data || []).map((t) => [t.name, t.id]));
-  for (const t of ['lp_config', 'lp_lead', 'lp_idem', 'lp_jobs', 'lp_agents', 'lp_audit', 'lp_dlq', 'lp_person_index']) {
-    if (!TABLES[t]) throw new Error(`data table ${t} is missing. Run: node scripts/create-tables.js`);
-  }
-}
-
-const eq = (col, val) => ({ type: 'and', filters: [{ columnName: col, condition: 'eq', value: val }] });
-
-async function rows(table, filter) {
-  // limit is capped at 250 by this API; a larger value is a 400, not a clamp.
-  const q = filter ? `?filter=${encodeURIComponent(JSON.stringify(filter))}&limit=250` : '?limit=250';
-  const r = await napi('GET', `/data-tables/${TABLES[table]}/rows${q}`);
-  if (r.status >= 300) throw new Error(`read ${table}: ${r.status} ${JSON.stringify(r.json)}`);
-  return r.json?.data || [];
-}
-
-/**
- * A read returns three columns the table does not have - `id`, `createdAt`,
- * `updatedAt` - and the natural way to edit a row is `{...row, field: value}`.
- * That sends them straight back, and the API answers
- * `400 unknown column name 'id'`.
- *
- * This cost three edge cases on the first full run. Every one of them set up
- * its scenario with an upsert, got a silent 400 because nothing checked the
- * status, and then failed twenty seconds later asserting on a state change
- * that had never been written. The failure message named the assertion, not
- * the cause, which is the worst kind of test failure: it accuses the system
- * under test of a bug the harness caused.
- *
- * So: strip the three, and THROW on any non-2xx. A test harness that swallows
- * a 400 is not a harness, it is a random number generator.
- */
-async function upsert(table, filter, row) {
-  const { id, createdAt, updatedAt, ...data } = row;
-  const r = await napi('POST', `/data-tables/${TABLES[table]}/rows/upsert`, { filter, data });
-  if (r.status >= 300) throw new Error(`upsert ${table}: ${r.status} ${JSON.stringify(r.json)}`);
-  return r;
-}
-async function setConfig(key, value) {
-  return upsert('lp_config', eq('key', key), { key, value: String(value), note: 'set by run-edge-cases.mjs' });
-}
-
-/** Poll until `fn` returns truthy, or give up. The pipeline is asynchronous by
- *  design, so every assertion has to wait for an outcome rather than assume the
- *  webhook's 202 meant the work finished. */
-async function until(label, fn, { tries = 20, waitMs = 1500 } = {}) {
-  for (let i = 0; i < tries; i++) {
-    const v = await fn();
-    if (v) return v;
-    await nap(waitMs);
-  }
-  throw new Error(`timed out waiting for: ${label}`);
-}
-
-const leadRow = (uid) => rows('lp_lead', eq('lead_uid', uid)).then((r) => r[0]);
-const runTick = () => hook('lp-tick', { source: 'edge-case-runner' });
-
-/** Ask Odoo directly. Trusting our own tables to prove a CRM write landed is
- *  the exact mistake this whole project is built to avoid. */
-async function odoo(model, method, args, kwargs = {}) {
-  const cfg = Object.fromEntries((await rows('lp_config')).map((r) => [r.key, r.value]));
-  const url = String(cfg.odoo_url).replace(/\/+$/, '');
-  const call = async (payload) => {
-    const res = await fetch(`${url}/jsonrpc`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Odoo-Database': cfg.odoo_db },
-      body: JSON.stringify(payload),
-    });
-    return res.json();
-  };
-  const auth = await call({ jsonrpc: '2.0', method: 'call', id: 1,
-    params: { service: 'common', method: 'authenticate', args: [cfg.odoo_db, cfg.odoo_user, cfg.odoo_password, {}] } });
-  const uid = auth.result;
-  const out = await call({ jsonrpc: '2.0', method: 'call', id: 2,
-    params: { service: 'object', method: 'execute_kw',
-      args: [cfg.odoo_db, uid, cfg.odoo_password, model, method, args, { context: { active_test: false }, ...kwargs }] } });
-  if (out.error) throw new Error('Odoo: ' + (out.error.data?.message || out.error.message));
-  return out.result;
-}
-const odooByUid = (uid) => odoo('crm.lead', 'search_read',
-  [[['x_lp_lead_id', '=', uid]]], { fields: ['id', 'name', 'stage_id', 'active', 'probability', 'user_id', 'email_from', 'phone'] });
 
 // --- payload builders -------------------------------------------------------
 
@@ -222,7 +96,7 @@ const whatsapp = (over = {}) => ({
 // --- the cases --------------------------------------------------------------
 
 const CASES = [];
-const test = (n, title, fn) => CASES.push({ n, title, fn });
+const test = (n, title, fn) => CASES.push({ n, group: 'EC', title, fn });
 
 test(1, 'Same person from two sources within 2 minutes -> one opportunity, second merged', async () => {
   const phone = phoneFor("00");
@@ -682,65 +556,20 @@ test(15, 'Business rule 7: no sales action within the SLA -> escalated and reass
 // --- run --------------------------------------------------------------------
 
 (async () => {
-  console.log(`Lead Intelligence Pipeline - edge case suite`);
+  console.log('\nLead Intelligence Pipeline - edge case suite');
   console.log(`instance ${BASE}   run id ${RUN}\n`);
   await loadTables();
 
-  // PREFLIGHT, and it is not optional.
-  //
-  // This suite creates leads whose addresses look real, and LP-92 sends real
-  // email. Without demo_redirect_email set, a test run would put mail in a
-  // stranger's inbox at a domain nobody here owns. Refusing to start is the
-  // only acceptable behaviour: a test harness that can reach a real person is
-  // a test harness that eventually will.
-  const cfg = Object.fromEntries((await rows('lp_config')).map((r) => [r.key, r.value]));
+  const cfg = await config();
   if (!cfg.odoo_url) {
-    console.error('lp_config has no odoo_url. Run LP-00 Setup and Seed once first.');
+    console.error('lp_config has no odoo_url. Run LP-00 Setup and Seed once first, or: node scripts/demo-reset.js <email>');
     process.exit(2);
   }
-  if (!String(cfg.demo_redirect_email || '').trim()) {
-    console.error([
-      'REFUSING TO RUN: lp_config.demo_redirect_email is not set.',
-      '',
-      'This suite generates leads at real-looking domains and the pipeline sends real',
-      'email. Set the redirect first so every lead-facing message lands in one inbox',
-      'you own, with the intended recipient preserved in the subject line:',
-      '',
-      '  node -e "..." or add the row through the n8n Data Table UI:',
-      '     lp_config: key=demo_redirect_email  value=<your address>',
-      '',
-      'Manager alerts are never redirected - they are internal by definition.',
-    ].join('\n'));
-    process.exit(2);
-  }
-  console.log(`lead-facing mail redirected to ${cfg.demo_redirect_email}\n`);
+  const redirect = await requireMailRedirect();
+  console.log(`lead-facing mail redirected to ${redirect}\n`);
 
-  const chosen = only.length ? CASES.filter((c) => only.includes(c.n)) : CASES;
-  const results = [];
-
-  for (const c of chosen) {
-    const t0 = Date.now();
-    process.stdout.write(`EC-${String(c.n).padStart(2)}  ${c.title}\n`);
-    try {
-      const detail = await c.fn();
-      const soft = String(detail).startsWith('SOFT:');
-      results.push({ n: c.n, title: c.title, status: soft ? 'SOFT' : 'PASS', detail, secs: Math.round((Date.now() - t0) / 1000) });
-      console.log(`        ${soft ? 'SOFT' : 'PASS'}  ${detail}\n`);
-    } catch (e) {
-      results.push({ n: c.n, title: c.title, status: 'FAIL', detail: e.message, secs: Math.round((Date.now() - t0) / 1000) });
-      console.log(`        FAIL  ${e.message}\n`);
-    }
-  }
-
-  const pass = results.filter((r) => r.status === 'PASS').length;
-  const soft = results.filter((r) => r.status === 'SOFT').length;
-  const fail = results.filter((r) => r.status === 'FAIL').length;
-
-  console.log('-'.repeat(76));
-  console.log(`${pass} passed, ${soft} soft (non-deterministic, explained), ${fail} failed`);
-
-  const out = path.join(ROOT, '05_Test_Evidence', 'last-run.json');
-  fs.writeFileSync(out, JSON.stringify({ instance: BASE, run_id: RUN, results }, null, 2) + '\n');
-  console.log(`Full detail written to ${path.relative(ROOT, out)}`);
+  const fail = await runSuite({
+    title: 'Edge cases', cases: CASES, only, outFile: '05_Test_Evidence/last-run.json',
+  });
   process.exit(fail ? 1 : 0);
 })().catch((e) => { console.error('\nSUITE ABORTED:', e.message); process.exit(2); });

@@ -7,7 +7,7 @@ the *what* is in the workflow JSON and it is heavily commented.
 |---|---|
 | Stack | n8n 2.69.0 self-hosted, Odoo saas~19.3 (external API over JSON-RPC), OpenRouter |
 | State | eight n8n Data Tables (`lp_*`) |
-| Size | 11 workflows, 212 nodes, 138 unit tests, 15 live edge-case tests |
+| Size | 11 workflows, 212 nodes, 158 unit assertions, 47 live tests (15 edge cases + 32 hardening) |
 | Running cost | ~$0.07 per 1,000 classified leads (calculated, see §5). Everything else is free |
 
 **Contents.** [1 Assumptions](#1-assumptions) · [2 Architecture](#2-architecture-overview) ·
@@ -683,6 +683,21 @@ real lead takes.
 Odoo, the new lead merged into *it*, and the dedupe assertion passed without this run having created
 anything. A test that passes for the wrong reason is worse than one that fails.
 
+### Hardening — 32 checks against the live pipeline
+
+`node 05_Test_Evidence/run-hardening.mjs`. The fourteen mandated cases all send a **well-formed,
+authenticated request** and then check that the pipeline did the clever thing. None of them asks
+what happens when the request itself is wrong, hostile or enormous, and in production that is most
+of the traffic. So this suite attacks the contract instead of the logic: authentication on all
+twelve endpoints, malformed and empty bodies, unknown event types, unknown leads, a second
+contradictory approval, a WhatsApp status callback, excluded verticals, job-seeker text, disposable
+inboxes, **Arabic input**, nurture and qualified cadences, a 50 KB message, injection strings, an
+over-cap CSV, BOM and CRLF and quoted commas, four refusal paths on replay, the public metrics
+payload, audit-trail completeness, and a sweep of every workflow's errored executions.
+
+It found four defects, none of them reachable from the fourteen. Details:
+[../05_Test_Evidence/HARDENING.md](../05_Test_Evidence/HARDENING.md).
+
 ### Manual — [../05_Test_Evidence/MANUAL-STEPS.md](../05_Test_Evidence/MANUAL-STEPS.md)
 
 The handful of things a script should not assert: that the confirmation email actually arrives and
@@ -712,6 +727,25 @@ Worth stating, because it is the argument for testing at this layer at all:
 - **The manager was the default owner of everything**, because the fallback owner sat in the normal
   rotation with capacity 50 and every service category. Found on the first clean-slate run, when an
   idle roster made the tie-break visible.
+- **Arabic input scored 20 points low, silently.** `\b` is defined by `\w`, and in a non-unicode
+  JavaScript regex an Arabic letter is not a word character - so `/\bأتمتة/` matches nothing, ever.
+  The Arabic terms were inside the same `\b(...)` group as the English ones, so every Arabic
+  enquiry got `service: unknown` and no urgency. For an Egypt-facing business that is most of the
+  inbound, landing a band too low. Nothing but a test written in Arabic could have seen it.
+- **The ops report timed out** once the tables had real data: five chained Data Table reads, each
+  running once per input item, is a combinatorial explosion. It passed every earlier test because
+  the tables were nearly empty - the shape of bug that takes a daily email down a month later and
+  is noticed by nobody.
+- **A second, contradictory approval overwrote the first**, because the claim that should have
+  stopped it is written after the response and two clicks can both read "no claim yet". A manager's
+  rejection could be undone by a stale link in the same email.
+- **The database schema and the code had drifted apart, and had for the whole project.** The column
+  list lived in `constants.js` *and* in `create-tables.js`, and the second copy still named
+  `stated_urgency` and `stated_budget` - retired weeks earlier. The real table carried two dead
+  columns and two missing ones. Nothing failed, because writing to a column that does not exist is
+  only an error if something writes to it. The moment something did, **every lead failed to store**.
+  Fixed at the root: one typed definition, `create-tables.js` derives from it, and a hardening check
+  reads the live tables back and compares them column by column.
 
 ---
 

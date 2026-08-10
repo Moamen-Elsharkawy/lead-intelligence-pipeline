@@ -120,9 +120,19 @@ node scripts/test-scoring.js               # 61 assertions, no network
 node scripts/test-intake.js                # 77 assertions, no network
 
 node scripts/demo-reset.js you@example.com # OPTIONAL: back to a known-empty state
-node 05_Test_Evidence/run-edge-cases.mjs   # 15 cases against the live pipeline
+node 05_Test_Evidence/run-edge-cases.mjs   # the 15 mandated cases, live
+node 05_Test_Evidence/run-hardening.mjs    # 32 contract and robustness checks, live
 node 05_Test_Evidence/run-edge-cases.mjs 7 14
 ```
+
+**Two live suites, and they test different things.** `run-edge-cases.mjs` proves the fourteen
+scenarios the brief names, plus business rule 7. `run-hardening.mjs` attacks the contract instead
+of the logic: authentication on every endpoint, malformed bodies, unknown ids, hostile strings, an
+over-cap CSV, Arabic input, the four refusal paths on replay, audit-trail completeness, and a sweep
+of every workflow's errored executions. It found four defects the fourteen could not reach - see
+[../05_Test_Evidence/HARDENING.md](../05_Test_Evidence/HARDENING.md). Both share
+`05_Test_Evidence/_harness.mjs`, so neither can drift away from the other's understanding of the
+instance.
 
 **Reset first if you are running the suite repeatedly.** The cases are designed to survive leftover
 state - identities are run-unique - but they cannot survive a saturated roster: each run leaves

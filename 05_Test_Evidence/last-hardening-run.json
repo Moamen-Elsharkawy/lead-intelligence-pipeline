@@ -1,0 +1,262 @@
+{
+  "instance": "https://moamen.dsoqi.online",
+  "suite": "Hardening",
+  "results": [
+    {
+      "n": 1,
+      "group": "A",
+      "title": "A webhook with no token is refused",
+      "status": "PASS",
+      "detail": "no X-LP-Token -> 403",
+      "secs": 0
+    },
+    {
+      "n": 2,
+      "group": "A",
+      "title": "A webhook with the wrong token is refused",
+      "status": "PASS",
+      "detail": "wrong X-LP-Token -> 403",
+      "secs": 0
+    },
+    {
+      "n": 3,
+      "group": "A",
+      "title": "Every inbound endpoint is authenticated, not just the lead ones",
+      "status": "PASS",
+      "detail": "all 12 endpoints refuse an unauthenticated call, including the three mocks",
+      "secs": 1
+    },
+    {
+      "n": 4,
+      "group": "A",
+      "title": "A malformed JSON body does not take the workflow down",
+      "status": "PASS",
+      "detail": "truncated JSON -> 422, no lead created",
+      "secs": 0
+    },
+    {
+      "n": 5,
+      "group": "A",
+      "title": "An empty body is handled, not crashed on",
+      "status": "PASS",
+      "detail": "empty body -> 202 {\"ok\":false,\"received\":1,\"accepted\":0,\"duplicates\":0,\"quarantined\":1,\"ignored\":0,\"lead_uids\":[],\"incomplete\":[],\"errors\"",
+      "secs": 0
+    },
+    {
+      "n": 6,
+      "group": "B",
+      "title": "An unknown event type is rejected with a reason",
+      "status": "PASS",
+      "detail": "type \"teleport\" -> ok:false, \"type must be one of reply, opt_out, booking, close, sales_action\"",
+      "secs": 1
+    },
+    {
+      "n": 7,
+      "group": "B",
+      "title": "An event with no lead_uid is rejected",
+      "status": "PASS",
+      "detail": "missing lead_uid -> ok:false, \"lead_uid is required\"",
+      "secs": 1
+    },
+    {
+      "n": 8,
+      "group": "B",
+      "title": "An event for a lead that does not exist is a 404, not a crash",
+      "status": "PASS",
+      "detail": "unknown lead -> status 404, \"no lead with id LP-19990101-DEADBEEF\"",
+      "secs": 1
+    },
+    {
+      "n": 9,
+      "group": "B",
+      "title": "An approval with an invalid decision is rejected",
+      "status": "PASS",
+      "detail": "decision \"maybe\" -> ok:false, \"decision must be approve or reject\"",
+      "secs": 1
+    },
+    {
+      "n": 10,
+      "group": "B",
+      "title": "A second approval on the same lead is refused, not silently applied",
+      "status": "PASS",
+      "detail": "reject applied, then approve refused (\"this lead was already rejected by manager@example.com. Rever\"); state stayed rejected",
+      "secs": 7
+    },
+    {
+      "n": 11,
+      "group": "B",
+      "title": "A WhatsApp delivery-status callback is acknowledged and ignored",
+      "status": "PASS",
+      "detail": "status callback -> 202, lead count unchanged at 19",
+      "secs": 3
+    },
+    {
+      "n": 12,
+      "group": "C",
+      "title": "An excluded vertical is hard-disqualified whatever else it scores",
+      "status": "PASS",
+      "detail": "$50k urgent enquiry, gambling vertical -> score 0, unqualified, \"excluded vertical, hard disqualify\"",
+      "secs": 5
+    },
+    {
+      "n": 13,
+      "group": "C",
+      "title": "Job-seeker language is penalised, not qualified",
+      "status": "PASS",
+      "detail": "penalty -20 applied, final score 58 -> nurture",
+      "secs": 5
+    },
+    {
+      "n": 14,
+      "group": "C",
+      "title": "A disposable inbox costs points and says so",
+      "status": "PASS",
+      "detail": "mailinator.com -> -10 points, \"throwaway inbox\"",
+      "secs": 5
+    },
+    {
+      "n": 15,
+      "group": "C",
+      "title": "An Arabic enquiry is parsed, scored and routed like any other",
+      "status": "PASS",
+      "detail": "Arabic name and body preserved; service=automation and urgency=immediate matched from Arabic; Odoo #65",
+      "secs": 5
+    },
+    {
+      "n": 16,
+      "group": "C",
+      "title": "A Nurture lead gets the nurture cadence, not the qualified one",
+      "status": "PASS",
+      "detail": "score 52 -> nurture; 3 follow-ups due at roughly +2d, +7d, +21d (rule: 2/7/21)",
+      "secs": 5
+    },
+    {
+      "n": 17,
+      "group": "C",
+      "title": "A Qualified lead is assigned, armed with an SLA, and confirmed",
+      "status": "PASS",
+      "detail": "owner sales-01 (rung 1), SLA at +1800s, confirmation sent, Odoo #67 carries the score and reason",
+      "secs": 6
+    },
+    {
+      "n": 18,
+      "group": "D",
+      "title": "A 50 KB message is truncated rather than crashing or storing whole",
+      "status": "PASS",
+      "detail": "52000 chars in -> free_text capped at 4000, lead completed normally",
+      "secs": 5
+    },
+    {
+      "n": 19,
+      "group": "D",
+      "title": "Hostile strings in every field are stored as data, never executed",
+      "status": "PASS",
+      "detail": "injection payloads stored as inert text, control characters stripped, Odoo #69 created normally",
+      "secs": 6
+    },
+    {
+      "n": 20,
+      "group": "D",
+      "title": "A CSV over the row cap is refused with the limit named, not half-imported",
+      "status": "PASS",
+      "detail": "260 rows in -> 0 imported, refused with the limit named: \"260 rows exceeds the 200-row synchronous limit. Split the file, or use the documented async import path.\"",
+      "secs": 0
+    },
+    {
+      "n": 21,
+      "group": "D",
+      "title": "A CSV with a BOM, CRLF and quoted commas parses correctly",
+      "status": "PASS",
+      "detail": "BOM stripped, CRLF handled, quoted commas and an embedded newline preserved: \"Hassan, Mahmoud\" / \"Delta Clinics, LLC\"",
+      "secs": 1
+    },
+    {
+      "n": 22,
+      "group": "D",
+      "title": "An import row with attested consent records where consent came from",
+      "status": "PASS",
+      "detail": "consent=granted, consent_source=import_attested - the lawful basis is recorded per lead, not assumed",
+      "secs": 2
+    },
+    {
+      "n": 23,
+      "group": "E",
+      "title": "Replaying a dead letter that does not exist is a 404",
+      "status": "PASS",
+      "detail": "unknown dlq_id -> 404, \"no dead letter with id dlq-does-not-exist-06096653\"",
+      "secs": 0
+    },
+    {
+      "n": 24,
+      "group": "E",
+      "title": "Replaying with no dlq_id at all is a 400",
+      "status": "PASS",
+      "detail": "missing dlq_id -> 400, \"dlq_id is required\"",
+      "secs": 1
+    },
+    {
+      "n": 25,
+      "group": "E",
+      "title": "A malformed override_json is refused instead of half-applied",
+      "status": "PASS",
+      "detail": "bad override -> 400, and the dead letter stayed \"open\" rather than being marked handled",
+      "secs": 1
+    },
+    {
+      "n": 26,
+      "group": "E",
+      "title": "A dead letter already handled is refused a second time",
+      "status": "PASS",
+      "detail": "already replayed -> 409, \"this dead letter is already replayed\"",
+      "secs": 1
+    },
+    {
+      "n": 27,
+      "group": "E",
+      "title": "A permanent Odoo error is classified permanent and never retried",
+      "status": "PASS",
+      "detail": "the credential-death injector returns 400; classification of 401 as permanent+critical is covered by the unit suite (dlq rows: 9)",
+      "secs": 1
+    },
+    {
+      "n": 28,
+      "group": "F",
+      "title": "The ops endpoint returns every metric the brief asks for",
+      "status": "PASS",
+      "detail": "all six reported - processed 29, qualified 10, duplicates 5, failed 1, manual 1, SLA 1",
+      "secs": 0
+    },
+    {
+      "n": 29,
+      "group": "F",
+      "title": "The public ops payload does not leak internal addresses",
+      "status": "PASS",
+      "detail": "manager_email and odoo credentials absent from the 2092-byte public payload",
+      "secs": 1
+    },
+    {
+      "n": 30,
+      "group": "F",
+      "title": "Every lead this suite created has a complete, readable audit trail",
+      "status": "PASS",
+      "detail": "11 leads checked, every one traceable from intake to CRM write, every row carrying its execution id",
+      "secs": 1
+    },
+    {
+      "n": 32,
+      "group": "G",
+      "title": "The live tables match the schema the code is built from",
+      "status": "PASS",
+      "detail": "8 tables, 91 columns, every one matching the definition the workflows are generated from",
+      "secs": 1
+    },
+    {
+      "n": 31,
+      "group": "G",
+      "title": "Nothing errored on the instance during this run that should not have",
+      "status": "PASS",
+      "detail": "all 11 workflows: zero unexpected errored executions since this suite started",
+      "secs": 1
+    }
+  ]
+}

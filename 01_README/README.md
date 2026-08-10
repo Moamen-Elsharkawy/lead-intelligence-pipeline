@@ -90,9 +90,12 @@ repo:
 Full detail in [RUNNING.md](RUNNING.md).
 
 ```bash
-node scripts/test-scoring.js                 # 61 unit tests, no network
-node scripts/test-intake.js                  # 77 unit tests, no network
-node 05_Test_Evidence/run-edge-cases.mjs     # all 15 cases against the live pipeline
+node scripts/test-scoring.js                 #  61 unit assertions, no network
+node scripts/test-intake.js                  #  97 unit assertions, no network
+
+node scripts/demo-reset.js you@example.com   # back to a known-empty state
+node 05_Test_Evidence/run-edge-cases.mjs     #  15 mandated edge cases, live
+node 05_Test_Evidence/run-hardening.mjs      #  32 hardening checks, live
 node 05_Test_Evidence/run-edge-cases.mjs 7   # just one
 ```
 

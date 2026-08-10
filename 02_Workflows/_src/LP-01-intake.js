@@ -609,6 +609,8 @@ return [{ json: {
             company: '={{ $json.company }}',
             domain: '={{ $json.domain }}',
             service_interest: '={{ $json.service_interest }}',
+            urgency: '={{ $json.urgency }}',
+            budget_band: '={{ $json.budget_band }}',
             free_text: '={{ $json.free_text }}',
             consent: '={{ $json.consent }}',
             consent_source: '={{ $json.consent_source }}',

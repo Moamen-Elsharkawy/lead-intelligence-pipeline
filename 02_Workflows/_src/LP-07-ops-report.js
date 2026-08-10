@@ -59,6 +59,19 @@ return [{ json: {
 `,
     },
 
+    // executeOnce on all five reads below, and it is load-bearing.
+    //
+    // A Data Table read runs once per INPUT ITEM, and these five are chained:
+    // Read Leads emits N leads, so Read Audit ran N times, each emitting M rows,
+    // so Read Jobs ran N x M times. With sixty leads and a few hundred audit
+    // rows that is tens of thousands of reads and the execution simply times
+    // out - which is exactly what the hardening suite found: the ops endpoint
+    // answered 500 "the execution was cancelled because it timed out".
+    //
+    // It passed every earlier test because the tables were nearly empty. This
+    // is the shape of bug that ships fine and then takes the daily report down
+    // a month later, silently, because nobody notices an email that stopped
+    // arriving.
     {
       n: 'Read Leads',
       t: 'dataTable',
@@ -69,6 +82,7 @@ return [{ json: {
         returnAll: true,
         filters: { conditions: [] },
       },
+      executeOnce: true,
       alwaysOutputData: true,
     },
     {
@@ -82,6 +96,7 @@ return [{ json: {
         filters: { conditions: [{ keyName: 'ts', condition: 'gte', keyValue: "={{ $('Window').first().json.since }}" }] },
         returnAll: true,
       },
+      executeOnce: true,
       alwaysOutputData: true,
       notes: 'Only the window is read, not the whole log. The audit table is the fastest-growing\n'
         + 'thing in the system - several rows per lead - so a report that reads all of it gets\n'
@@ -97,6 +112,7 @@ return [{ json: {
         returnAll: true,
         filters: { conditions: [] },
       },
+      executeOnce: true,
       alwaysOutputData: true,
     },
     {
@@ -110,6 +126,7 @@ return [{ json: {
         filters: { conditions: [{ keyName: 'state', condition: 'eq', keyValue: 'open' }] },
         returnAll: true,
       },
+      executeOnce: true,
       alwaysOutputData: true,
     },
     {
@@ -122,6 +139,7 @@ return [{ json: {
         returnAll: true,
         filters: { conditions: [] },
       },
+      executeOnce: true,
       alwaysOutputData: true,
     },
 

@@ -478,32 +478,82 @@ function backoffMs(attempt) {
 }
 
 // ---------------------------------------------------------------------------
-// 12. Data tables
+// 12. Data tables - THE ONLY definition of the schema
 // ---------------------------------------------------------------------------
-// Seven tables, created by LP-00. Data Table columns are string | number |
-// boolean | date, and the schema is IMMUTABLE through the public API, so a
-// missed column means dropping and recreating the table. They are listed here
-// in full for that reason.
+// Eight tables. Column types are string | number | boolean | date; there is no
+// JSON column, so payloads are stored as JSON strings. Timestamps are epoch
+// SECONDS in number columns, because numeric comparison is the one filter
+// semantics that is unambiguous here and the tick's `due_at <= now` depends
+// on it.
 //
-// Timestamps are stored as epoch SECONDS in number columns. Numeric
-// comparison is unambiguous in the Data Table filter operators, which is what
-// the tick's `due_at <= now` claim depends on.
+// THIS IS THE SINGLE SOURCE. scripts/create-tables.js builds the tables from
+// exactly this object and nothing else.
+//
+// It was not always. The column list lived here AND, separately, in
+// create-tables.js - and the two drifted, in the quiet way a duplicated
+// definition always does. The real table carried `stated_urgency` and
+// `stated_budget`, names retired weeks earlier when the scorer and the intake
+// were unified on `urgency` and `budget_band`; the live names had never been
+// stored at all. Nothing failed, because writing a column that does not exist
+// is only an error if you write it, and nothing did. Two dead columns and two
+// missing ones, invisible until a test asserted on a field and read undefined.
+//
+// A schema with two homes is a schema that will disagree with itself.
+
+const T_S = 'string';
+const T_N = 'number';
+const T_B = 'boolean';
 
 const TABLES = {
-  lead: ['lead_uid', 'source', 'source_ref', 'received_at', 'full_name', 'email_raw', 'email_norm',
-    'phone_raw', 'phone_e164', 'phone_key', 'country', 'company', 'domain', 'service_interest',
-    'free_text', 'consent', 'consent_source', 'score', 'score_breakdown_json', 'band',
-    'ai_status', 'ai_intent', 'ai_urgency', 'ai_signals', 'ai_reason', 'ai_confidence',
-    'owner_id', 'assign_rung', 'odoo_lead_id', 'odoo_stage', 'approval_state', 'approval_by',
-    'status', 'merged_into', 'raw_json', 'updated_at'],
-  idem: ['idem_key', 'scope', 'lead_uid', 'state', 'result_ref', 'claimed_at', 'completed_at', 'attempts'],
-  person_index: ['person_key', 'lead_uid', 'email_norm', 'phone_key', 'created_at'],
-  jobs: ['job_id', 'lead_uid', 'job_type', 'step', 'template', 'due_at', 'state', 'attempts',
-    'claimed_at', 'result', 'cancel_reason'],
-  agents: ['agent_id', 'name', 'email', 'services', 'capacity', 'open_leads', 'available', 'odoo_user_id'],
-  audit: ['event_id', 'lead_uid', 'ts', 'workflow', 'execution_id', 'type', 'decision', 'detail_json'],
-  dlq: ['dlq_id', 'lead_uid', 'stage_failed', 'error_class', 'error', 'payload_json', 'attempts',
-    'state', 'first_seen', 'last_seen'],
+  lp_config: { key: T_S, value: T_S, note: T_S },
+
+  lp_lead: {
+    lead_uid: T_S, source: T_S, source_ref: T_S, received_at: T_N,
+    full_name: T_S, email_raw: T_S, email_norm: T_S,
+    phone_raw: T_S, phone_e164: T_S, phone_key: T_S,
+    country: T_S, company: T_S, domain: T_S,
+    service_interest: T_S, urgency: T_S, budget_band: T_S, free_text: T_S,
+    consent: T_S, consent_source: T_S,
+    score: T_N, score_breakdown_json: T_S, band: T_S,
+    ai_status: T_S, ai_intent: T_S, ai_urgency: T_S, ai_signals: T_S, ai_reason: T_S, ai_confidence: T_N,
+    owner_id: T_S, assign_rung: T_N, odoo_lead_id: T_N, odoo_stage: T_S,
+    approval_state: T_S, approval_by: T_S,
+    status: T_S, merged_into: T_S, raw_json: T_S, updated_at: T_N,
+  },
+
+  // The idempotency ledger. One row per claimed side effect, every scope.
+  lp_idem: {
+    idem_key: T_S, scope: T_S, lead_uid: T_S, state: T_S, result_ref: T_S,
+    claimed_at: T_N, completed_at: T_N, attempts: T_N,
+  },
+
+  // Identity, a different question from idempotency: idem_key asks "have we
+  // processed this event?", person_key asks "have we met this human?".
+  lp_person_index: {
+    person_key: T_S, lead_uid: T_S, email_norm: T_S, phone_key: T_S, created_at: T_N,
+  },
+
+  lp_jobs: {
+    job_id: T_S, lead_uid: T_S, job_type: T_S, step: T_N, template: T_S,
+    due_at: T_N, state: T_S, attempts: T_N, claimed_at: T_N, result: T_S, cancel_reason: T_S,
+  },
+
+  lp_agents: {
+    agent_id: T_S, name: T_S, email: T_S, services: T_S,
+    capacity: T_N, open_leads: T_N, available: T_B, odoo_user_id: T_N,
+  },
+
+  // The audit trail. n8n's execution log is not one: it is pruned on a
+  // schedule and cannot be queried by lead.
+  lp_audit: {
+    event_id: T_S, lead_uid: T_S, ts: T_N, workflow: T_S, execution_id: T_S,
+    type: T_S, decision: T_S, detail_json: T_S,
+  },
+
+  lp_dlq: {
+    dlq_id: T_S, lead_uid: T_S, stage_failed: T_S, error_class: T_S, error: T_S,
+    payload_json: T_S, attempts: T_N, state: T_S, first_seen: T_N, last_seen: T_N,
+  },
 };
 
 // The audit log is the audit trail. n8n's own execution log is not: it is

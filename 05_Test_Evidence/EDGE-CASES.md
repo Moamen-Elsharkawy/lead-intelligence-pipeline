@@ -1,6 +1,6 @@
 # Test Evidence: the fourteen mandated edge cases
 
-**Latest run: 15 passed, 0 failed.** Run id `02189170`, 184 seconds of wall clock.
+**Latest run: 15 passed, 0 soft, 0 failed.** Run id `undefined`, 180 seconds of wall clock.
 Raw output: [last-run.json](last-run.json).
 
 That run was from a **clean slate**: the eight data tables recreated, and a fresh Odoo sandbox

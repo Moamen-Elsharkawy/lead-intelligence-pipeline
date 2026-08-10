@@ -27,51 +27,23 @@ const BASE = (process.env.N8N_API_URL || '').replace(/\/+$/, '');
 const KEY = process.env.N8N_API_KEY;
 if (!KEY) { console.error('N8N_API_KEY is not set (put it in .env at the repo root).'); process.exit(1); }
 
-const S = (name) => ({ name, type: 'string' });
-const N = (name) => ({ name, type: 'number' });
-const B = (name) => ({ name, type: 'boolean' });
+// THE SCHEMA IS NOT DEFINED HERE. It is read from _shared/constants.js, which
+// is also what the workflows are built from - so a column can never exist in
+// one place and not the other.
+//
+// It used to be defined twice, and the two drifted: this file created
+// `stated_urgency` and `stated_budget` long after the code had been unified on
+// `urgency` and `budget_band`. Two dead columns, two missing ones, and nothing
+// failed - because writing to a column that does not exist is only an error if
+// something writes to it, and nothing did until a test asked.
+const C = require('../02_Workflows/_shared/constants.js');
 
-// Timestamps are epoch SECONDS in number columns, never ISO strings. The tick
-// claims work with `due_at <= now`, and numeric comparison is the one filter
-// operator whose semantics are unambiguous here.
-const TABLES = {
-  lp_config: [S('key'), S('value'), S('note')],
-
-  lp_lead: [
-    S('lead_uid'), S('source'), S('source_ref'), N('received_at'),
-    S('full_name'), S('email_raw'), S('email_norm'), S('phone_raw'), S('phone_e164'), S('phone_key'),
-    S('country'), S('company'), S('domain'), S('service_interest'), S('free_text'),
-    S('consent'), S('consent_source'), S('stated_urgency'), S('stated_budget'),
-    N('score'), S('score_breakdown_json'), S('band'),
-    S('ai_status'), S('ai_intent'), S('ai_urgency'), S('ai_signals'), S('ai_reason'), N('ai_confidence'),
-    S('owner_id'), N('assign_rung'), N('odoo_lead_id'), S('odoo_stage'),
-    S('approval_state'), S('approval_by'), S('status'), S('merged_into'),
-    S('raw_json'), N('updated_at'),
-  ],
-
-  // The idempotency ledger. One row per claimed side effect, across every
-  // scope: intake, odoo_upsert, message, booking, approval.
-  lp_idem: [S('idem_key'), S('scope'), S('lead_uid'), S('state'), S('result_ref'),
-    N('claimed_at'), N('completed_at'), N('attempts')],
-
-  // Identity, which is a different question from idempotency: idem_key asks
-  // "have we processed this event?", person_key asks "have we met this human?".
-  lp_person_index: [S('person_key'), S('lead_uid'), S('email_norm'), S('phone_key'), N('created_at')],
-
-  lp_jobs: [S('job_id'), S('lead_uid'), S('job_type'), N('step'), S('template'),
-    N('due_at'), S('state'), N('attempts'), N('claimed_at'), S('result'), S('cancel_reason')],
-
-  lp_agents: [S('agent_id'), S('name'), S('email'), S('services'),
-    N('capacity'), N('open_leads'), B('available'), N('odoo_user_id')],
-
-  // The audit trail. n8n's execution log is not one: it is pruned on a
-  // schedule and cannot be queried by lead.
-  lp_audit: [S('event_id'), S('lead_uid'), N('ts'), S('workflow'), S('execution_id'),
-    S('type'), S('decision'), S('detail_json')],
-
-  lp_dlq: [S('dlq_id'), S('lead_uid'), S('stage_failed'), S('error_class'), S('error'),
-    S('payload_json'), N('attempts'), S('state'), N('first_seen'), N('last_seen')],
-};
+const TABLES = Object.fromEntries(
+  Object.entries(C.TABLES).map(([table, cols]) => [
+    table,
+    Object.entries(cols).map(([name, type]) => ({ name, type })),
+  ]),
+);
 
 async function api(method, urlPath, body) {
   const res = await fetch(`${BASE}/api/v1${urlPath}`, {

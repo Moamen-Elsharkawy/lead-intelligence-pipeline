@@ -127,6 +127,14 @@ lexically and quietly break the queue.
 
 Every field above. One row per lead, updated in place.
 
+`urgency` and `budget_band` were **missing from the table** while being present in the canonical
+lead and used by the scorer - so this document described a row the database did not have. Caught by
+a hardening check that asserted on them and read `undefined`. They are stored now. The lesson worth
+keeping: a data-model document is only true if something executable checks it.
+
+Partial upserts **merge** on this API rather than replacing, which is why nodes that touch one or
+two fields (the tick's reassignment, an event's status change) do not need to restate the whole row.
+
 ### `lp_idem` — the claim ledger
 
 The spine of the whole design.

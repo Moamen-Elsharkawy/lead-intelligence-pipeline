@@ -763,6 +763,8 @@ return [{ json: {
             company: '={{ $json.lead.company }}',
             domain: '={{ $json.lead.domain }}',
             service_interest: '={{ $json.lead.service_interest }}',
+            urgency: '={{ $json.lead.urgency }}',
+            budget_band: '={{ $json.lead.budget_band }}',
             free_text: '={{ $json.lead.free_text }}',
             consent: '={{ $json.lead.consent }}',
             consent_source: '={{ $json.lead.consent_source }}',
