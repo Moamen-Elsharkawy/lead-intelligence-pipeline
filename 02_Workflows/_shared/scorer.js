@@ -45,11 +45,20 @@ function bucketService(service) {
   return 'low';
 }
 
+/**
+ * Accepts a band that intake already derived ('high' | 'mid' | 'unknown'), or a
+ * raw amount for any caller that did not come through intake. Thresholds live
+ * in constants.js, so the two paths cannot drift apart.
+ */
 function bucketBudget(budget) {
-  const n = Number(String(budget || '').replace(/[^\d.]/g, ''));
+  const s = String(budget || '').trim().toLowerCase();
+  if (s === 'high' || s === 'mid' || s === 'unknown' || s === '') {
+    return s || 'unknown';
+  }
+  const n = Number(s.replace(/[^\d.]/g, ''));
   if (!Number.isFinite(n) || n <= 0) return 'unknown';
-  if (n >= 5000) return 'high';
-  if (n >= 1000) return 'mid';
+  if (n >= C.BUDGET_USD.HIGH) return 'high';
+  if (n >= C.BUDGET_USD.MID) return 'mid';
   return 'unknown';
 }
 
@@ -103,7 +112,12 @@ function scoreLead(lead, enrich = {}) {
   const serviceB = bucketService(lead.service_interest);
   add('service', serviceB, C.SCORE.service[serviceB]);
 
-  const urgency = String(lead.stated_urgency || 'unknown');
+  // Field names are the CANONICAL ones from _shared/intake.js. They were once
+  // `stated_urgency` and `stated_budget` here and `urgency` and `budget_band`
+  // there, which meant every real lead scored as though it had stated neither -
+  // silently, because a missing field is a legal "unknown". Only a test that
+  // ran intake and the scorer together caught it, which is why that test exists.
+  const urgency = String(lead.urgency || 'unknown');
   add('urgency', urgency, C.SCORE.urgency[urgency] ?? C.SCORE.urgency.unknown);
 
   const hasEmail = !!lead.email_norm && C.EMAIL_RE.test(lead.email_norm);
@@ -114,7 +128,7 @@ function scoreLead(lead, enrich = {}) {
   const src = String(lead.source || '').toLowerCase();
   add('source', src, C.SCORE.source[src] ?? 0);
 
-  const budgetB = bucketBudget(lead.stated_budget);
+  const budgetB = bucketBudget(lead.budget_band);
   add('budget', budgetB, C.SCORE.budget[budgetB]);
 
   const emailDomain = String(lead.email_norm || '').split('@')[1] || '';

@@ -23,19 +23,23 @@ const SHARED = path.join(ROOT, '02_Workflows', '_shared');
 const OUT = path.join(ROOT, '02_Workflows');
 
 // --- the runtime preamble --------------------------------------------------
-// constants.js defines `C`; scorer.js re-requires it, which is redundant once
-// both live in one scope, so that single line is stripped.
+// constants.js defines `C`; the other modules re-require it, which is redundant
+// once they all live in one scope, so that single line is stripped from each.
+//
+// Inside a Code node the three namespaces are `C` (constants), `S` (scoring)
+// and `I` (intake), exactly as they are in the test runners - so a snippet
+// pasted from a node into a test, or the reverse, behaves identically.
 function buildPrelude() {
-  const constants = fs.readFileSync(path.join(SHARED, 'constants.js'), 'utf8');
-  const scorer = fs
-    .readFileSync(path.join(SHARED, 'scorer.js'), 'utf8')
+  const strip = (f) => fs
+    .readFileSync(path.join(SHARED, f), 'utf8')
     .replace(/^const C = require\(['"]\.\/constants\.js['"]\);\s*$/m, '');
   return [
     '// ===== BEGIN shared runtime, generated from 02_Workflows/_shared/ =====',
     '// Do not edit here. Edit the source files and re-run scripts/build-workflows.js.',
-    '// The same source is unit-tested by scripts/test-scoring.js.',
-    constants,
-    scorer,
+    '// The same source is unit-tested by scripts/test-scoring.js and test-intake.js.',
+    fs.readFileSync(path.join(SHARED, 'constants.js'), 'utf8'),
+    strip('scorer.js'),
+    strip('intake.js'),
     '// ===== END shared runtime =====',
     '',
   ].join('\n');

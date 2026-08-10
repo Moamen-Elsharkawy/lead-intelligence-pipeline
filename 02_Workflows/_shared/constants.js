@@ -262,6 +262,13 @@ const SCORE = {
   MAX: 100,
 };
 
+// Budget bands, in USD, defined ONCE. They were briefly defined twice - the
+// scorer bucketed an amount and intake banded the same amount against different
+// numbers - so the same lead could score differently depending on which path it
+// arrived by. A threshold with two homes is a threshold that will disagree with
+// itself.
+const BUDGET_USD = { HIGH: 5000, MID: 1000 };
+
 const TARGET_INDUSTRIES = ['technology', 'professional services', 'real estate', 'healthcare', 'education', 'logistics'];
 const ADJACENT_INDUSTRIES = ['retail', 'manufacturing', 'hospitality', 'construction'];
 // Out-of-scope verticals. Every agency has them; keeping the list as data
@@ -510,7 +517,7 @@ const C = {
   LEAD_SCHEMA, CRITICAL_FIELDS, DIAL_PREFIXES, FREE_EMAIL_DOMAINS, DISPOSABLE_EMAIL_DOMAINS,
   phoneKey, toE164, countryFromE164, normEmail, EMAIL_RE, domainOf,
   IDEM_SCOPES, intakeIdemKey, personKeyOf, stableHash, canonicalJson, leadUidFrom, DUP, dupConfidence,
-  SCORE, TARGET_INDUSTRIES, ADJACENT_INDUSTRIES, EXCLUDED_INDUSTRIES, CORE_MARKETS,
+  SCORE, BUDGET_USD, TARGET_INDUSTRIES, ADJACENT_INDUSTRIES, EXCLUDED_INDUSTRIES, CORE_MARKETS,
   ADJACENT_MARKETS, HIGH_VALUE_SERVICES, MID_VALUE_SERVICES, DISQUALIFY_PATTERNS,
   BANDS, bandFor, BAND_ORDINAL, AI_SCHEMA, AI_IMPLIED_BAND, CONFLICT, materiallyConflicts,
   ASSIGN_RUNGS, pickOwner, STAGES, STAGES_TO_CREATE, STAGE_TRANSITIONS, LOST_REASONS,

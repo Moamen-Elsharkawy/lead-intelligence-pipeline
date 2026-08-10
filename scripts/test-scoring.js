@@ -31,7 +31,7 @@ console.log('--- personas -------------------------------------------------');
 const waStrong = {
   source: 'whatsapp', full_name: 'Sara Adel', phone_key: '1012345678',
   phone_e164: '+201012345678', country: C.countryFromE164('+201012345678'),
-  email_norm: '', service_interest: 'automation', stated_urgency: 'immediate',
+  email_norm: '', service_interest: 'automation', urgency: 'immediate',
   free_text: 'We need to automate our lead follow-up, our sales team is drowning.',
 };
 const waStrongR = scoreLead(waStrong, {});
@@ -42,7 +42,7 @@ check('  ...and its country came from the dial prefix', waStrong.country, 'EG');
 const waWeak = {
   source: 'whatsapp', full_name: 'Karim T', phone_key: '1122334455',
   phone_e164: '+201122334455', country: 'EG', email_norm: '',
-  service_interest: 'training', stated_urgency: 'exploring', free_text: 'just asking about prices',
+  service_interest: 'training', urgency: 'exploring', free_text: 'just asking about prices',
 };
 // 12 size-unknown + 10 industry-unknown + 10 core market + 15 mid-value
 // service + 2 exploring + 3 phone-only + 4 whatsapp + 0 budget = 56.
@@ -51,8 +51,8 @@ check('WhatsApp browsing lead lands in Nurture', band(waWeak, {}), 'nurture(56)'
 const webVip = {
   source: 'website', full_name: 'Nadia Fouad', email_norm: 'nadia@acme-logistics.com',
   phone_key: '1098765432', phone_e164: '+201098765432', country: 'EG',
-  domain: 'acme-logistics.com', service_interest: 'rag', stated_urgency: 'immediate',
-  stated_budget: '$12,000', free_text: 'We want a RAG assistant over our shipping docs this quarter.',
+  domain: 'acme-logistics.com', service_interest: 'rag', urgency: 'immediate',
+  budget_band: '$12,000', free_text: 'We want a RAG assistant over our shipping docs this quarter.',
 };
 const webVipR = scoreLead(webVip, { company_size: 400, industry: 'logistics', country: 'EG', strategic: false });
 check('Enriched enterprise website lead reaches VIP', webVipR.band, 'vip');
@@ -60,13 +60,13 @@ check('Enriched enterprise website lead reaches VIP', webVipR.band, 'vip');
 const webMid = {
   source: 'website', full_name: 'Omar S', email_norm: 'omar@smallshop.com',
   phone_key: '1055555555', country: 'EG', domain: 'smallshop.com',
-  service_interest: 'consulting', stated_urgency: 'this_quarter', stated_budget: '$1,500',
+  service_interest: 'consulting', urgency: 'this_quarter', budget_band: '$1,500',
 };
 check('Mid website lead lands in Qualified', band(webMid, { company_size: 80, industry: 'retail', country: 'EG' }), 'qualified(73)');
 
 const webWeak = {
   source: 'csv_import', full_name: 'Test Person', email_norm: 'x@tinyco.io',
-  country: 'GB', domain: 'tinyco.io', service_interest: 'newsletter', stated_urgency: 'exploring',
+  country: 'GB', domain: 'tinyco.io', service_interest: 'newsletter', urgency: 'exploring',
 };
 // 6 micro-company + 8 adjacent industry + 2 non-core market + 5 low-value ask
 // + 2 exploring + 3 email-only + 1 cold import + 0 budget = 27.
@@ -74,7 +74,7 @@ check('Cold import with a low-value ask is Unqualified', band(webWeak, { company
 
 const jobSeeker = {
   source: 'website', full_name: 'Applicant', email_norm: 'me@gmail.com', phone_key: '1000000001',
-  country: 'EG', service_interest: 'automation', stated_urgency: 'immediate',
+  country: 'EG', service_interest: 'automation', urgency: 'immediate',
   free_text: 'I am a student looking for an internship, attaching my CV.',
 };
 const jsR = scoreLead(jobSeeker, {});

@@ -8,6 +8,12 @@
       "purpose": "One-click provisioning: Odoo connection, external-ref field, funnel stages, seed agents."
     },
     {
+      "file": "LP-01-intake.json",
+      "name": "LP-01 Intake",
+      "nodes": 17,
+      "purpose": "Website, WhatsApp and CSV intake: normalize to one schema, gate duplicate deliveries, quarantine bad rows, hand off."
+    },
+    {
       "file": "LP-90-odoo-gateway.json",
       "name": "LP-90 Odoo Gateway",
       "nodes": 10,
@@ -20,5 +26,5 @@
       "purpose": "Enrichment, WhatsApp and booking stand-ins, with on-demand deterministic failure injection."
     }
   ],
-  "total_nodes": 56
+  "total_nodes": 73
 }
