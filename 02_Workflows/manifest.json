@@ -12,7 +12,13 @@
       "name": "LP-90 Odoo Gateway",
       "nodes": 10,
       "purpose": "Single egress point for Odoo. Auth, retry with bounded backoff, and the 200-on-error trap."
+    },
+    {
+      "file": "LP-99-mock-services.json",
+      "name": "LP-99 Mock Services",
+      "nodes": 20,
+      "purpose": "Enrichment, WhatsApp and booking stand-ins, with on-demand deterministic failure injection."
     }
   ],
-  "total_nodes": 36
+  "total_nodes": 56
 }

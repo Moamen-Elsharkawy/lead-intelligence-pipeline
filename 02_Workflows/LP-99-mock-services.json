@@ -1,0 +1,765 @@
+{
+  "name": "LP-99 Mock Services",
+  "nodes": [
+    {
+      "id": "b0434096-d053-4933-8a82-6c62ff592a65",
+      "name": "enrich Endpoint",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -900,
+        -200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lp-mock-enrich",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "LP Webhook Token (X-LP-Token)"
+        }
+      },
+      "notes": "Fixed path /webhook/lp-mock-enrich.\n\nOriginally one webhook on `lp-mock/:service`. Path parameters did not register\non this n8n build - every request answered 404 while the workflow reported\nactive:true and an identical fixed-path webhook in LP-00 answered fine. Three\nfixed paths cost two extra nodes and remove an unknown; the chaos machinery\ndownstream is still written once."
+    },
+    {
+      "id": "e910eff6-2fa7-43d0-85c5-d73821ef7558",
+      "name": "whatsapp Endpoint",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -900,
+        -10
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lp-mock-whatsapp",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "LP Webhook Token (X-LP-Token)"
+        }
+      },
+      "notes": "Fixed path /webhook/lp-mock-whatsapp.\n\nOriginally one webhook on `lp-mock/:service`. Path parameters did not register\non this n8n build - every request answered 404 while the workflow reported\nactive:true and an identical fixed-path webhook in LP-00 answered fine. Three\nfixed paths cost two extra nodes and remove an unknown; the chaos machinery\ndownstream is still written once."
+    },
+    {
+      "id": "4df1f458-68a5-40f6-80ff-c167b1e7856d",
+      "name": "booking Endpoint",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -900,
+        180
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lp-mock-booking",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "LP Webhook Token (X-LP-Token)"
+        }
+      },
+      "notes": "Fixed path /webhook/lp-mock-booking.\n\nOriginally one webhook on `lp-mock/:service`. Path parameters did not register\non this n8n build - every request answered 404 while the workflow reported\nactive:true and an identical fixed-path webhook in LP-00 answered fine. Three\nfixed paths cost two extra nodes and remove an unknown; the chaos machinery\ndownstream is still written once."
+    },
+    {
+      "id": "158db5c5-1878-4474-8393-19df1d17606f",
+      "name": "tag enrich",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -660,
+        -200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Stamp which endpoint fired, then hand off to the shared chain.\nconst r = $input.first().json;\nreturn [{ json: { service: 'enrich', query: r.query || {}, body: r.body || {} } }];\n"
+      }
+    },
+    {
+      "id": "c640a987-3acd-45d7-8910-337b28b72bf2",
+      "name": "tag whatsapp",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -660,
+        -10
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Stamp which endpoint fired, then hand off to the shared chain.\nconst r = $input.first().json;\nreturn [{ json: { service: 'whatsapp', query: r.query || {}, body: r.body || {} } }];\n"
+      }
+    },
+    {
+      "id": "06307229-5082-4dfb-8bef-bf58f1177462",
+      "name": "tag booking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -660,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Stamp which endpoint fired, then hand off to the shared chain.\nconst r = $input.first().json;\nreturn [{ json: { service: 'booking', query: r.query || {}, body: r.body || {} } }];\n"
+      }
+    },
+    {
+      "id": "bc9b8fc3-5aea-4f8f-8759-04cbdb5169b5",
+      "name": "Read Chaos Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        -200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ===== BEGIN shared runtime, generated from 02_Workflows/_shared/ =====\n// Do not edit here. Edit the source files and re-run scripts/build-workflows.js.\n// The same source is unit-tested by scripts/test-scoring.js.\n/**\n * Lead Intelligence Pipeline - canonical constants.\n *\n * n8n Code nodes cannot import files, so the relevant slice of this file is\n * inlined into each node. THIS FILE IS THE SOURCE OF TRUTH: change it here\n * first, then propagate. Every inlined copy carries the comment\n * `// from _shared/constants.js` so the copies are greppable.\n *\n * Nothing here reads a secret. Per-deployment values live in each workflow's\n * `Config` node, because this n8n instance runs with\n * N8N_BLOCK_ENV_ACCESS_IN_NODE=true and $env throws.\n */\n\n// ---------------------------------------------------------------------------\n// 1. Canonical lead schema\n// ---------------------------------------------------------------------------\n// Every source is normalised into exactly this shape before anything else\n// looks at it. `raw_json` keeps the original payload so a replay can prove\n// what actually arrived.\n\nconst LEAD_SCHEMA = {\n  lead_uid: 'string', // LP-<yyyymmdd>-<8 hex>, generated once at intake\n  source: 'string', // website | whatsapp | csv_import\n  source_ref: 'string', // provider id when the source gives one (wamid, form id, csv row)\n  received_at: 'number', // epoch seconds\n  full_name: 'string',\n  email_raw: 'string',\n  email_norm: 'string', // lowercased, gmail dots/plus-tags folded\n  phone_raw: 'string',\n  phone_e164: 'string', // +<cc><national>, digits only after the +\n  phone_key: 'string', // trailing 10 digits, the comparison key\n  country: 'string', // ISO-2, derived from the E.164 prefix when not supplied\n  company: 'string',\n  domain: 'string', // from email_norm when it is not a free provider\n  service_interest: 'string',\n  free_text: 'string', // the \"what do you need\" blob the AI reads\n  consent: 'string', // granted | denied | unknown\n  consent_source: 'string', // form_checkbox | inbound_initiated | import_attested\n  // --- filled downstream ---\n  score: 'number',\n  score_breakdown_json: 'string',\n  band: 'string', // vip | qualified | nurture | unqualified | data_completion | manual_review\n  ai_status: 'string', // ok | unavailable | skipped\n  ai_intent: 'string', // high | medium | low\n  ai_urgency: 'string',\n  ai_signals: 'string',\n  ai_reason: 'string',\n  ai_confidence: 'number',\n  owner_id: 'string',\n  assign_rung: 'number', // which fallback rung assigned it, 1..3\n  odoo_lead_id: 'number',\n  odoo_stage: 'string',\n  approval_state: 'string', // not_required | pending | approved | rejected\n  approval_by: 'string',\n  status: 'string', // active | merged | closed\n  merged_into: 'string', // lead_uid of the survivor, when this one lost a dedupe\n  raw_json: 'string',\n  updated_at: 'number',\n};\n\n// Critical fields. Missing any of these routes to the Data Completion path\n// instead of scoring. `service_interest` is deliberately NOT critical: it is\n// recoverable from free text and from the follow-up conversation, and making\n// it critical sent most WhatsApp leads to a human for no reason.\nconst CRITICAL_FIELDS = ['full_name', 'contactable', 'consent'];\n// `contactable` is satisfied by EITHER a valid email OR a valid phone.\n\n// ---------------------------------------------------------------------------\n// 2. Normalisation\n// ---------------------------------------------------------------------------\n\n// Country dial prefixes, longest-first so +1868 beats +1.\n// Only the markets this business actually sees; everything else resolves to ''.\nconst DIAL_PREFIXES = [\n  ['971', 'AE'], ['966', 'SA'], ['974', 'QA'], ['965', 'KW'], ['973', 'BH'],\n  ['968', 'OM'], ['962', 'JO'], ['961', 'LB'], ['212', 'MA'], ['216', 'TN'],\n  ['213', 'DZ'], ['249', 'SD'], ['218', 'LY'], ['964', 'IQ'],\n  ['20', 'EG'], ['44', 'GB'], ['49', 'DE'], ['33', 'FR'], ['91', 'IN'],\n  ['1', 'US'],\n];\n\nconst FREE_EMAIL_DOMAINS = new Set([\n  'gmail.com', 'googlemail.com', 'yahoo.com', 'hotmail.com', 'outlook.com',\n  'live.com', 'icloud.com', 'aol.com', 'proton.me', 'protonmail.com',\n  'yandex.com', 'mail.com', 'gmx.com',\n]);\n\nconst DISPOSABLE_EMAIL_DOMAINS = new Set([\n  'mailinator.com', 'tempmail.com', 'guerrillamail.com', '10minutemail.com',\n  'throwaway.email', 'yopmail.com', 'trashmail.com', 'sharklasers.com',\n]);\n\n/**\n * Digits-only, then take the trailing 10 as the comparison key.\n * Ported from projects/accounts/belal/tooling/contacts-parser/parse_contacts.py,\n * where it deduped 23.5k real contacts down to 12,866. The trailing-10 rule is\n * what makes \"01012345678\", \"+201012345678\" and \"0020 101 234 5678\" one person.\n */\nfunction phoneKey(raw) {\n  const d = String(raw || '').replace(/\\D/g, '');\n  return d.length >= 10 ? d.slice(-10) : d;\n}\n\n/**\n * Best-effort E.164. `defaultCc` is the deployment's home country, used only\n * when the number carries no international prefix of its own.\n */\nfunction toE164(raw, defaultCc = '20') {\n  let d = String(raw || '').replace(/\\D/g, '');\n  if (!d) return '';\n  if (d.startsWith('00')) d = d.slice(2);\n  // A local number: drop the trunk 0 and prepend the home country code.\n  if (d.startsWith('0')) d = defaultCc + d.slice(1);\n  // Already-national length with no country code at all.\n  else if (d.length <= 10) d = defaultCc + d;\n  return '+' + d;\n}\n\nfunction countryFromE164(e164) {\n  const d = String(e164 || '').replace(/\\D/g, '');\n  for (const [pfx, iso] of DIAL_PREFIXES) if (d.startsWith(pfx)) return iso;\n  return '';\n}\n\n/**\n * Fold an email to a comparison key. Gmail ignores dots and everything after\n * a plus, so a.b+lead@gmail.com and ab@gmail.com are the same inbox - and the\n * same person submitting twice.\n */\nfunction normEmail(raw) {\n  const s = String(raw || '').trim().toLowerCase();\n  const at = s.lastIndexOf('@');\n  if (at < 1) return '';\n  let [user, domain] = [s.slice(0, at), s.slice(at + 1)];\n  if (domain === 'googlemail.com') domain = 'gmail.com';\n  if (domain === 'gmail.com') user = user.split('+')[0].replace(/\\./g, '');\n  else user = user.split('+')[0];\n  return `${user}@${domain}`;\n}\n\nconst EMAIL_RE = /^[^\\s@]+@[^\\s@.]+\\.[^\\s@]{2,}$/;\n\nfunction domainOf(emailNorm) {\n  const d = String(emailNorm || '').split('@')[1] || '';\n  return FREE_EMAIL_DOMAINS.has(d) ? '' : d;\n}\n\n// ---------------------------------------------------------------------------\n// 3. Identity and idempotency - two different things\n// ---------------------------------------------------------------------------\n// `idem_key` identifies an EVENT: \"has this exact delivery been processed?\"\n// `person_key` identifies a HUMAN: \"have we met this person before?\"\n// The same person arriving on WhatsApp and the website produces two different\n// event keys, both correctly accepted, and one person key that decides which\n// lead record survives. Conflating them is the classic bug: dedupe by event\n// key and the second source is silently dropped; dedupe by person key and a\n// retried webhook overwrites good data.\n\nconst IDEM_SCOPES = ['intake', 'odoo_upsert', 'message', 'booking', 'approval'];\n\n/**\n * FNV-1a 64-bit in BigInt: exact, dependency-free, and identical in a Code\n * node and in `node scripts/*`. Not a security hash and not used as one.\n */\nfunction stableHash(str) {\n  let h = 0xcbf29ce484222325n;\n  const prime = 0x100000001b3n;\n  const mask = 0xffffffffffffffffn;\n  const s = String(str);\n  for (let i = 0; i < s.length; i++) {\n    h ^= BigInt(s.charCodeAt(i) & 0xff);\n    h = (h * prime) & mask;\n  }\n  return h.toString(16).padStart(16, '0');\n}\n\n/** Key order must not change the hash, so serialise with sorted keys. */\nfunction canonicalJson(v) {\n  if (v === null || typeof v !== 'object') return JSON.stringify(v ?? null);\n  if (Array.isArray(v)) return `[${v.map(canonicalJson).join(',')}]`;\n  return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonicalJson(v[k])}`).join(',')}}`;\n}\n\n/**\n * Stable across retries, distinct across genuinely separate submissions.\n *\n * A provider id is always preferred. When there is none, the key is a hash of\n * the submission's own content - NOT a time bucket. Time bucketing was the\n * first design and it is fragile at the boundary: two clicks five seconds\n * apart can straddle a bucket edge and both be accepted, which is exactly the\n * duplicate the gate exists to stop. A content hash has no boundary.\n *\n * The accepted trade-off: a person who submits a byte-identical form twice a\n * week apart is treated as one event. That is the correct reading of an\n * identical request, and the second delivery still writes an\n * `intake_duplicate_event` audit row, so it is visible rather than silent.\n */\nfunction intakeIdemKey(source, sourceRef, personKey, payload) {\n  if (sourceRef) return `intake:${source}:${sourceRef}`;\n  return `intake:${source}:${personKey}:${stableHash(canonicalJson(payload))}`;\n}\n\n/** Deterministic, so a replay of the same event rebuilds the same id. */\nfunction leadUidFrom(idemKey, receivedAtSec) {\n  const d = new Date(Number(receivedAtSec || 0) * 1000);\n  const ymd = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;\n  return `LP-${ymd}-${stableHash(idemKey).slice(0, 8).toUpperCase()}`;\n}\n\nfunction personKeyOf(lead) {\n  return lead.phone_key || lead.email_norm || `uid:${lead.lead_uid}`;\n}\n\n// ---------------------------------------------------------------------------\n// 4. Duplicate confidence\n// ---------------------------------------------------------------------------\n// Never delete. High confidence merges into the survivor; medium raises a\n// manual-review case; low is treated as a new person.\n\nconst DUP = {\n  HIGH: 0.9, // phone_key match, or email_norm match\n  MEDIUM: 0.6, // same normalised name + same company, different contact details\n};\n\nfunction dupConfidence(a, b) {\n  if (a.phone_key && a.phone_key === b.phone_key) return { score: 1.0, on: 'phone_key' };\n  if (a.email_norm && a.email_norm === b.email_norm) return { score: 0.95, on: 'email_norm' };\n  const n = (s) => String(s || '').trim().toLowerCase().replace(/\\s+/g, ' ');\n  if (n(a.full_name) && n(a.full_name) === n(b.full_name)) {\n    if (n(a.company) && n(a.company) === n(b.company)) return { score: 0.75, on: 'name+company' };\n    if (a.domain && a.domain === b.domain) return { score: 0.7, on: 'name+domain' };\n    return { score: 0.4, on: 'name only' };\n  }\n  return { score: 0, on: 'none' };\n}\n\n// ---------------------------------------------------------------------------\n// 5. Deterministic scoring\n// ---------------------------------------------------------------------------\n// The AI contributes ZERO points. If the whole AI layer is deleted, every\n// lead still scores, routes, assigns and syncs. That separation is what makes\n// requirement D's \"deterministic score\" and \"separate qualitative\n// classification\" two genuinely independent axes rather than one dressed up\n// as two.\n//\n// Every `unknown` band is worth real points, not zero. A WhatsApp lead has no\n// email, therefore no domain, therefore no enrichment - and with zero-valued\n// unknowns the arithmetic made it structurally impossible for any WhatsApp\n// lead to reach 70. For a brief whose scenario centres on WhatsApp, that is a\n// scoring bug, not a scoring policy.\n\nconst SCORE = {\n  company_size: { '201+': 20, '51-200': 16, '11-50': 12, '1-10': 6, unknown: 12 },\n  industry: { target: 15, adjacent: 8, unknown: 10 }, // `excluded` disqualifies outright\n  market: { core: 10, adjacent: 6, unknown: 5, other: 2 },\n  service: { high: 25, mid: 15, low: 5, unknown: 5 },\n  urgency: { immediate: 10, this_quarter: 6, exploring: 2, unknown: 2 },\n  completeness: { both: 6, one: 3 },\n  source: { referral: 5, website: 5, whatsapp: 4, paid_social: 2, csv_import: 1 },\n  budget: { high: 14, mid: 7, unknown: 0 },\n  penalty: { competitor_or_jobseeker: -20, disposable_email: -10 },\n  MAX: 100,\n};\n\nconst TARGET_INDUSTRIES = ['technology', 'professional services', 'real estate', 'healthcare', 'education', 'logistics'];\nconst ADJACENT_INDUSTRIES = ['retail', 'manufacturing', 'hospitality', 'construction'];\n// Out-of-scope verticals. Every agency has them; keeping the list as data\n// rather than a hardcoded branch means changing it is a config edit.\nconst EXCLUDED_INDUSTRIES = ['gambling', 'alcohol', 'tobacco', 'adult', 'lending'];\n\nconst CORE_MARKETS = ['EG', 'AE', 'SA'];\nconst ADJACENT_MARKETS = ['QA', 'KW', 'BH', 'OM', 'JO'];\n\nconst HIGH_VALUE_SERVICES = ['automation', 'ai_agent', 'rag', 'integration', 'custom_app'];\nconst MID_VALUE_SERVICES = ['consulting', 'audit', 'training'];\n\nconst DISQUALIFY_PATTERNS = /\\b(job|vacanc|hiring|cv|resume|internship|student|thesis|competitor|partnership offer|guest post|seo services|link building)\\b/i;\n\n// ---------------------------------------------------------------------------\n// 6. Bands - the brief's business rules, verbatim\n// ---------------------------------------------------------------------------\n\nconst BANDS = {\n  VIP: { min: 90, label: 'vip' }, // or the strategic-account flag\n  QUALIFIED: { min: 70, label: 'qualified' },\n  NURTURE: { min: 40, label: 'nurture' },\n  UNQUALIFIED: { min: 0, label: 'unqualified' },\n};\n\nfunction bandFor(score, strategic) {\n  if (strategic || score >= 90) return 'vip';\n  if (score >= 70) return 'qualified';\n  if (score >= 40) return 'nurture';\n  return 'unqualified';\n}\n\n// Ordinal distance is what the AI-vs-rules conflict rule compares.\nconst BAND_ORDINAL = { unqualified: 0, nurture: 1, qualified: 2, vip: 2 };\n\n// ---------------------------------------------------------------------------\n// 7. The AI contract\n// ---------------------------------------------------------------------------\n\nconst AI_SCHEMA = {\n  intent_level: 'high | medium | low',\n  urgency: 'immediate | this_quarter | exploring | unknown',\n  buying_signals: 'string[] , at most 3',\n  reason: 'string, at most 200 chars, quoting the lead not inventing',\n  confidence: 'number 0..1',\n};\n\nconst AI_IMPLIED_BAND = { high: 'qualified', medium: 'nurture', low: 'unqualified' };\n\nconst CONFLICT = {\n  MIN_CONFIDENCE: 0.7,\n  MIN_BAND_DISTANCE: 2,\n};\n\n/**\n * \"Materially conflicts\" made numeric, because a reviewer will ask what\n * material means. One clause, two constants.\n *\n * Adjacent disagreement (qualified vs nurture) is expected noise around a cut\n * point and must NOT trigger review, or the manual queue becomes the default\n * path and the automation has achieved nothing.\n */\nfunction materiallyConflicts(ruleBand, ai) {\n  if (!ai || ai.ai_status !== 'ok') return false;\n  if (Number(ai.ai_confidence) < CONFLICT.MIN_CONFIDENCE) return false;\n  const aiBand = AI_IMPLIED_BAND[ai.ai_intent];\n  if (!aiBand) return false;\n  return Math.abs(BAND_ORDINAL[aiBand] - BAND_ORDINAL[ruleBand]) >= CONFLICT.MIN_BAND_DISTANCE;\n}\n\n// ---------------------------------------------------------------------------\n// 8. Assignment - three rungs, then stop\n// ---------------------------------------------------------------------------\n// Deterministic so it is testable: least loaded first, ties broken by agent_id\n// rather than by whatever order the table happened to return.\n\nconst ASSIGN_RUNGS = [\n  'available AND handles the service category',\n  'available, any category',\n  'fallback owner, and raise an alert',\n];\n\nfunction pickOwner(agents, service, fallbackOwnerId) {\n  const load = (a) => Number(a.open_leads || 0) / Math.max(1, Number(a.capacity || 1));\n  const byLoad = (x, y) => load(x) - load(y) || String(x.agent_id).localeCompare(String(y.agent_id));\n  const free = agents.filter((a) => a.available && Number(a.open_leads) < Number(a.capacity));\n  const matched = free.filter((a) => String(a.services || '').split(',').map((s) => s.trim()).includes(service));\n  if (matched.length) return { agent_id: matched.sort(byLoad)[0].agent_id, rung: 1 };\n  if (free.length) return { agent_id: free.sort(byLoad)[0].agent_id, rung: 2 };\n  return { agent_id: fallbackOwnerId, rung: 3, alert: true };\n}\n\n// ---------------------------------------------------------------------------\n// 9. Odoo stage map\n// ---------------------------------------------------------------------------\n// Lost is NOT a stage. In Odoo it is active=false + probability=0 + a lost\n// reason, which is why every duplicate search must pass {active_test: false}:\n// without it a previously-lost lead is invisible and gets created again.\n\nconst STAGES = {\n  NEW: 'New',\n  DATA_COMPLETION: 'Data Completion',\n  MANUAL_REVIEW: 'Manual Review',\n  AWAITING_APPROVAL: 'Awaiting Approval',\n  QUALIFIED: 'Qualified',\n  NURTURE: 'Nurture',\n  CONTACTED: 'Proposition',\n  BOOKED: 'Meeting Booked',\n  WON: 'Won',\n};\n\n// Stages Odoo does not ship with, created by LP-00 Setup.\nconst STAGES_TO_CREATE = [\n  { name: 'Data Completion', sequence: 5 },\n  { name: 'Manual Review', sequence: 6 },\n  { name: 'Awaiting Approval', sequence: 7 },\n  { name: 'Nurture', sequence: 8 },\n  { name: 'Meeting Booked', sequence: 30 },\n];\n\n// Business event -> the stage the opportunity moves to. This table IS the\n// \"dynamic sales funnel\" requirement; nothing moves a stage except a lookup\n// in here, so the funnel behaviour is one readable object rather than\n// conditionals scattered across nine workflows.\nconst STAGE_TRANSITIONS = {\n  lead_created: STAGES.NEW,\n  missing_critical_data: STAGES.DATA_COMPLETION,\n  duplicate_ambiguous: STAGES.MANUAL_REVIEW,\n  ai_rule_conflict: STAGES.MANUAL_REVIEW,\n  vip_pending_approval: STAGES.AWAITING_APPROVAL,\n  vip_approved: STAGES.QUALIFIED,\n  qualified_assigned: STAGES.QUALIFIED,\n  nurture_assigned: STAGES.NURTURE,\n  confirmation_sent: STAGES.CONTACTED,\n  meeting_booked: STAGES.BOOKED,\n  converted: STAGES.WON,\n};\n\n// Events that close a lead instead of moving it. Handled as active=false.\nconst LOST_REASONS = {\n  vip_rejected: 'Rejected by manager',\n  opted_out: 'Opted out',\n  unqualified_closed: 'Below qualification threshold',\n  sequence_exhausted: 'No response after full sequence',\n  duplicate_merged: 'Merged into an existing opportunity',\n};\n\n// ---------------------------------------------------------------------------\n// 10. Follow-up cadence\n// ---------------------------------------------------------------------------\n// Three steps with three genuinely different conditions: a relative-hours\n// delay, a relative-days delay, and a score-conditional step.\n\nconst CADENCE = {\n  qualified: [\n    { step: 1, delay_s: 3600, template: 'q_fu1', condition: 'always' },\n    { step: 2, delay_s: 86400, template: 'q_fu2', condition: 'always' },\n    { step: 3, delay_s: 259200, template: 'q_fu3', condition: 'score>=85' },\n  ],\n  nurture: [\n    { step: 1, delay_s: 172800, template: 'n_fu1', condition: 'always' },\n    { step: 2, delay_s: 604800, template: 'n_fu2', condition: 'always' },\n    { step: 3, delay_s: 1814400, template: 'n_fu3', condition: 'always' },\n  ],\n};\n\nconst SLA_SECONDS = 1800; // 30 minutes, per the brief's SLA Breach rule\n\n// Any of these cancels every pending job for the lead, immediately.\nconst STOP_REASONS = ['replied', 'booked', 'opted_out', 'closed', 'merged'];\n\n// ---------------------------------------------------------------------------\n// 11. Retry policy\n// ---------------------------------------------------------------------------\n// Capped at 8s, not 60s: the gateway is called with waitForSubWorkflow, so a\n// long backoff holds the caller open and can blow a webhook response window.\n// Bounded by tries AND by total elapsed, so no path can loop forever.\n\nconst RETRY = {\n  MAX_TRIES: 3,\n  BASE_MS: 500,\n  CAP_MS: 8000,\n  JITTER: 0.25,\n  RETRYABLE_STATUS: [408, 425, 429, 500, 502, 503, 504],\n  // Anything else is permanent and goes straight to the dead-letter queue.\n};\n\n/**\n * Exponential backoff with jitter, clamped LAST.\n *\n * The obvious ordering - cap, then jitter - is wrong: +/-25% applied after the\n * cap returns up to 10s from an \"8s cap\", so the cap is not a cap. A flaky\n * unit test caught this, which is the only reason it is not in the shipped\n * workflows.\n */\nfunction backoffMs(attempt) {\n  const raw = RETRY.BASE_MS * Math.pow(2, Math.max(0, attempt - 1));\n  const jittered = raw * (1 - RETRY.JITTER + Math.random() * RETRY.JITTER * 2);\n  return Math.max(RETRY.BASE_MS, Math.min(RETRY.CAP_MS, Math.round(jittered)));\n}\n\n// ---------------------------------------------------------------------------\n// 12. Data tables\n// ---------------------------------------------------------------------------\n// Seven tables, created by LP-00. Data Table columns are string | number |\n// boolean | date, and the schema is IMMUTABLE through the public API, so a\n// missed column means dropping and recreating the table. They are listed here\n// in full for that reason.\n//\n// Timestamps are stored as epoch SECONDS in number columns. Numeric\n// comparison is unambiguous in the Data Table filter operators, which is what\n// the tick's `due_at <= now` claim depends on.\n\nconst TABLES = {\n  lead: ['lead_uid', 'source', 'source_ref', 'received_at', 'full_name', 'email_raw', 'email_norm',\n    'phone_raw', 'phone_e164', 'phone_key', 'country', 'company', 'domain', 'service_interest',\n    'free_text', 'consent', 'consent_source', 'score', 'score_breakdown_json', 'band',\n    'ai_status', 'ai_intent', 'ai_urgency', 'ai_signals', 'ai_reason', 'ai_confidence',\n    'owner_id', 'assign_rung', 'odoo_lead_id', 'odoo_stage', 'approval_state', 'approval_by',\n    'status', 'merged_into', 'raw_json', 'updated_at'],\n  idem: ['idem_key', 'scope', 'lead_uid', 'state', 'result_ref', 'claimed_at', 'completed_at', 'attempts'],\n  person_index: ['person_key', 'lead_uid', 'email_norm', 'phone_key', 'created_at'],\n  jobs: ['job_id', 'lead_uid', 'job_type', 'step', 'template', 'due_at', 'state', 'attempts',\n    'claimed_at', 'result', 'cancel_reason'],\n  agents: ['agent_id', 'name', 'email', 'services', 'capacity', 'open_leads', 'available', 'odoo_user_id'],\n  audit: ['event_id', 'lead_uid', 'ts', 'workflow', 'execution_id', 'type', 'decision', 'detail_json'],\n  dlq: ['dlq_id', 'lead_uid', 'stage_failed', 'error_class', 'error', 'payload_json', 'attempts',\n    'state', 'first_seen', 'last_seen'],\n};\n\n// The audit log is the audit trail. n8n's own execution log is not: it is\n// pruned (14 days by default) and it is not queryable by lead.\nconst AUDIT_TYPES = [\n  'intake_received', 'intake_duplicate_event', 'validation_failed', 'duplicate_decision',\n  'enrichment', 'scored', 'ai_classified', 'ai_fallback', 'conflict_detected', 'banded',\n  'assigned', 'odoo_upserted', 'stage_changed', 'message_sent', 'message_suppressed',\n  'job_scheduled', 'job_cancelled', 'sla_breached', 'approval_requested', 'approval_decided',\n  'error', 'replayed',\n];\n\n// `C` is the namespace the inlined copy uses inside n8n Code nodes. The build\n// step concatenates this file into each node that needs it and strips the\n// `require` from scorer.js, so `C` is already in scope there. Guarding the\n// CommonJS export keeps the same file loadable by the test runner.\nconst C = {\n  LEAD_SCHEMA, CRITICAL_FIELDS, DIAL_PREFIXES, FREE_EMAIL_DOMAINS, DISPOSABLE_EMAIL_DOMAINS,\n  phoneKey, toE164, countryFromE164, normEmail, EMAIL_RE, domainOf,\n  IDEM_SCOPES, intakeIdemKey, personKeyOf, stableHash, canonicalJson, leadUidFrom, DUP, dupConfidence,\n  SCORE, TARGET_INDUSTRIES, ADJACENT_INDUSTRIES, EXCLUDED_INDUSTRIES, CORE_MARKETS,\n  ADJACENT_MARKETS, HIGH_VALUE_SERVICES, MID_VALUE_SERVICES, DISQUALIFY_PATTERNS,\n  BANDS, bandFor, BAND_ORDINAL, AI_SCHEMA, AI_IMPLIED_BAND, CONFLICT, materiallyConflicts,\n  ASSIGN_RUNGS, pickOwner, STAGES, STAGES_TO_CREATE, STAGE_TRANSITIONS, LOST_REASONS,\n  CADENCE, SLA_SECONDS, STOP_REASONS, RETRY, backoffMs, TABLES, AUDIT_TYPES,\n};\n\nif (typeof module !== 'undefined' && module.exports) module.exports = C;\n\n/**\n * Deterministic lead scoring. This is the exact body inlined into the\n * `Score Lead` Code node in LP-02, kept here so it can be unit-tested outside\n * n8n (see scripts/test-scoring.mjs).\n *\n * Two rules govern everything below:\n *   1. The AI contributes zero points. Delete the AI layer and this still runs.\n *   2. Every factor emits a breakdown line. A score you cannot explain line by\n *      line is a score you cannot defend when a salesperson disputes it.\n */\n\n\nfunction bucketSize(size) {\n  const n = Number(size);\n  if (!Number.isFinite(n) || n <= 0) return 'unknown';\n  if (n >= 201) return '201+';\n  if (n >= 51) return '51-200';\n  if (n >= 11) return '11-50';\n  return '1-10';\n}\n\nfunction bucketIndustry(industry) {\n  const s = String(industry || '').trim().toLowerCase();\n  if (!s) return 'unknown';\n  if (C.EXCLUDED_INDUSTRIES.some((x) => s.includes(x))) return 'excluded';\n  if (C.TARGET_INDUSTRIES.some((x) => s.includes(x))) return 'target';\n  if (C.ADJACENT_INDUSTRIES.some((x) => s.includes(x))) return 'adjacent';\n  return 'unknown';\n}\n\nfunction bucketMarket(country) {\n  const c = String(country || '').toUpperCase();\n  if (!c) return 'unknown';\n  if (C.CORE_MARKETS.includes(c)) return 'core';\n  if (C.ADJACENT_MARKETS.includes(c)) return 'adjacent';\n  return 'other';\n}\n\nfunction bucketService(service) {\n  const s = String(service || '').trim().toLowerCase().replace(/[\\s-]+/g, '_');\n  if (!s) return 'unknown';\n  if (C.HIGH_VALUE_SERVICES.includes(s)) return 'high';\n  if (C.MID_VALUE_SERVICES.includes(s)) return 'mid';\n  return 'low';\n}\n\nfunction bucketBudget(budget) {\n  const n = Number(String(budget || '').replace(/[^\\d.]/g, ''));\n  if (!Number.isFinite(n) || n <= 0) return 'unknown';\n  if (n >= 5000) return 'high';\n  if (n >= 1000) return 'mid';\n  return 'unknown';\n}\n\n/**\n * @param {object} lead      canonical lead\n * @param {object} enrich    {company_size, industry, country, strategic} or {} when unavailable\n * @returns {{score, band, strategic, disqualified, breakdown}}\n */\nfunction scoreLead(lead, enrich = {}) {\n  const breakdown = [];\n  let total = 0;\n  const add = (factor, value, points, note) => {\n    total += points;\n    breakdown.push({ factor, value, points, note: note || '' });\n  };\n\n  // Enrichment fills gaps; it never overrides something the lead stated.\n  const country = lead.country || enrich.country || '';\n  const industryBucket = bucketIndustry(enrich.industry);\n\n  // Hard disqualifier: an out-of-scope vertical is worth zero regardless of\n  // every other signal, so it short-circuits before any points are awarded.\n  if (industryBucket === 'excluded') {\n    return {\n      score: 0,\n      band: 'unqualified',\n      strategic: false,\n      disqualified: true,\n      disqualify_reason: `excluded industry: ${enrich.industry}`,\n      breakdown: [{ factor: 'industry', value: enrich.industry, points: 0, note: 'excluded vertical, hard disqualify' }],\n    };\n  }\n\n  const freeText = `${lead.free_text || ''} ${lead.service_interest || ''}`;\n  if (C.DISQUALIFY_PATTERNS.test(freeText)) {\n    add('intent_penalty', 'job/competitor/solicitation language',\n      C.SCORE.penalty.competitor_or_jobseeker, 'matched the disqualify pattern');\n  }\n\n  const sizeB = bucketSize(enrich.company_size);\n  add('company_size', sizeB, C.SCORE.company_size[sizeB],\n    sizeB === 'unknown' ? 'not enriched, scored at the unknown band rather than zero' : '');\n\n  add('industry', industryBucket, C.SCORE.industry[industryBucket],\n    industryBucket === 'unknown' ? 'not enriched, scored at the unknown band rather than zero' : '');\n\n  const marketB = bucketMarket(country);\n  add('market', marketB, C.SCORE.market[marketB],\n    lead.country ? '' : (country ? 'derived from the E.164 prefix' : 'no country signal'));\n\n  const serviceB = bucketService(lead.service_interest);\n  add('service', serviceB, C.SCORE.service[serviceB]);\n\n  const urgency = String(lead.stated_urgency || 'unknown');\n  add('urgency', urgency, C.SCORE.urgency[urgency] ?? C.SCORE.urgency.unknown);\n\n  const hasEmail = !!lead.email_norm && C.EMAIL_RE.test(lead.email_norm);\n  const hasPhone = !!lead.phone_key && lead.phone_key.length >= 10;\n  const completeness = hasEmail && hasPhone ? 'both' : 'one';\n  add('completeness', completeness, C.SCORE.completeness[completeness]);\n\n  const src = String(lead.source || '').toLowerCase();\n  add('source', src, C.SCORE.source[src] ?? 0);\n\n  const budgetB = bucketBudget(lead.stated_budget);\n  add('budget', budgetB, C.SCORE.budget[budgetB]);\n\n  const emailDomain = String(lead.email_norm || '').split('@')[1] || '';\n  if (C.DISPOSABLE_EMAIL_DOMAINS.has(emailDomain)) {\n    add('disposable_email', emailDomain, C.SCORE.penalty.disposable_email, 'throwaway inbox');\n  }\n\n  const raw = total;\n  const score = Math.max(0, Math.min(C.SCORE.MAX, raw));\n  if (raw !== score) breakdown.push({ factor: 'clamp', value: `${raw} -> ${score}`, points: 0, note: 'clamped to 0..100' });\n\n  const strategic = String(enrich.strategic) === 'true' || enrich.strategic === true;\n  if (strategic) breakdown.push({ factor: 'strategic_account', value: true, points: 0, note: 'forces the VIP band regardless of score' });\n\n  return { score, band: C.bandFor(score, strategic), strategic, disqualified: false, breakdown };\n}\n\nif (typeof module !== 'undefined' && module.exports) {\n  module.exports = { scoreLead, bucketSize, bucketIndustry, bucketMarket, bucketService, bucketBudget };\n}\n\n// ===== END shared runtime =====\nconst req = $input.first().json;\nconst q = req.query || {};\nconst body = req.body || {};\nconst service = String(req.service || '').toLowerCase();\n\nconst fail = String(q.fail || '').toLowerCase();\nconst times = Math.max(0, parseInt(q.times ?? '1', 10) || 0);\n// The counter key defaults to something stable per target, so \"two failures\n// then success\" is per-lead rather than global.\nconst key = String(q.key || body.domain || body.to || body.lead_uid || 'global');\n\nreturn [{ json: {\n  service, body, fail, times, key,\n  reset: String(q.reset || '') === '1',\n  counter_key: 'mock:' + service + ':' + key + ':' + (fail || 'none'),\n  chaos_requested: !!fail,\n} }];\n"
+      }
+    },
+    {
+      "id": "5882576c-07c7-4e50-82a9-e9a269ef6abe",
+      "name": "Read Counter",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -180,
+        -200
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "lp_idem"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "idem_key",
+              "condition": "eq",
+              "keyValue": "={{ $json.counter_key }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true,
+      "notes": "The call counter reuses lp_idem under scope=\"mock\" instead of adding a ninth\ntable. It is the same shape - a key and an attempt count - and Data Table\nschemas cannot be altered after creation, so fewer tables is fewer things to\nget permanently wrong."
+    },
+    {
+      "id": "bea06cd1-2f0e-4f13-84f3-ec0bcd53dd4e",
+      "name": "Decide Behaviour",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        -200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ===== BEGIN shared runtime, generated from 02_Workflows/_shared/ =====\n// Do not edit here. Edit the source files and re-run scripts/build-workflows.js.\n// The same source is unit-tested by scripts/test-scoring.js.\n/**\n * Lead Intelligence Pipeline - canonical constants.\n *\n * n8n Code nodes cannot import files, so the relevant slice of this file is\n * inlined into each node. THIS FILE IS THE SOURCE OF TRUTH: change it here\n * first, then propagate. Every inlined copy carries the comment\n * `// from _shared/constants.js` so the copies are greppable.\n *\n * Nothing here reads a secret. Per-deployment values live in each workflow's\n * `Config` node, because this n8n instance runs with\n * N8N_BLOCK_ENV_ACCESS_IN_NODE=true and $env throws.\n */\n\n// ---------------------------------------------------------------------------\n// 1. Canonical lead schema\n// ---------------------------------------------------------------------------\n// Every source is normalised into exactly this shape before anything else\n// looks at it. `raw_json` keeps the original payload so a replay can prove\n// what actually arrived.\n\nconst LEAD_SCHEMA = {\n  lead_uid: 'string', // LP-<yyyymmdd>-<8 hex>, generated once at intake\n  source: 'string', // website | whatsapp | csv_import\n  source_ref: 'string', // provider id when the source gives one (wamid, form id, csv row)\n  received_at: 'number', // epoch seconds\n  full_name: 'string',\n  email_raw: 'string',\n  email_norm: 'string', // lowercased, gmail dots/plus-tags folded\n  phone_raw: 'string',\n  phone_e164: 'string', // +<cc><national>, digits only after the +\n  phone_key: 'string', // trailing 10 digits, the comparison key\n  country: 'string', // ISO-2, derived from the E.164 prefix when not supplied\n  company: 'string',\n  domain: 'string', // from email_norm when it is not a free provider\n  service_interest: 'string',\n  free_text: 'string', // the \"what do you need\" blob the AI reads\n  consent: 'string', // granted | denied | unknown\n  consent_source: 'string', // form_checkbox | inbound_initiated | import_attested\n  // --- filled downstream ---\n  score: 'number',\n  score_breakdown_json: 'string',\n  band: 'string', // vip | qualified | nurture | unqualified | data_completion | manual_review\n  ai_status: 'string', // ok | unavailable | skipped\n  ai_intent: 'string', // high | medium | low\n  ai_urgency: 'string',\n  ai_signals: 'string',\n  ai_reason: 'string',\n  ai_confidence: 'number',\n  owner_id: 'string',\n  assign_rung: 'number', // which fallback rung assigned it, 1..3\n  odoo_lead_id: 'number',\n  odoo_stage: 'string',\n  approval_state: 'string', // not_required | pending | approved | rejected\n  approval_by: 'string',\n  status: 'string', // active | merged | closed\n  merged_into: 'string', // lead_uid of the survivor, when this one lost a dedupe\n  raw_json: 'string',\n  updated_at: 'number',\n};\n\n// Critical fields. Missing any of these routes to the Data Completion path\n// instead of scoring. `service_interest` is deliberately NOT critical: it is\n// recoverable from free text and from the follow-up conversation, and making\n// it critical sent most WhatsApp leads to a human for no reason.\nconst CRITICAL_FIELDS = ['full_name', 'contactable', 'consent'];\n// `contactable` is satisfied by EITHER a valid email OR a valid phone.\n\n// ---------------------------------------------------------------------------\n// 2. Normalisation\n// ---------------------------------------------------------------------------\n\n// Country dial prefixes, longest-first so +1868 beats +1.\n// Only the markets this business actually sees; everything else resolves to ''.\nconst DIAL_PREFIXES = [\n  ['971', 'AE'], ['966', 'SA'], ['974', 'QA'], ['965', 'KW'], ['973', 'BH'],\n  ['968', 'OM'], ['962', 'JO'], ['961', 'LB'], ['212', 'MA'], ['216', 'TN'],\n  ['213', 'DZ'], ['249', 'SD'], ['218', 'LY'], ['964', 'IQ'],\n  ['20', 'EG'], ['44', 'GB'], ['49', 'DE'], ['33', 'FR'], ['91', 'IN'],\n  ['1', 'US'],\n];\n\nconst FREE_EMAIL_DOMAINS = new Set([\n  'gmail.com', 'googlemail.com', 'yahoo.com', 'hotmail.com', 'outlook.com',\n  'live.com', 'icloud.com', 'aol.com', 'proton.me', 'protonmail.com',\n  'yandex.com', 'mail.com', 'gmx.com',\n]);\n\nconst DISPOSABLE_EMAIL_DOMAINS = new Set([\n  'mailinator.com', 'tempmail.com', 'guerrillamail.com', '10minutemail.com',\n  'throwaway.email', 'yopmail.com', 'trashmail.com', 'sharklasers.com',\n]);\n\n/**\n * Digits-only, then take the trailing 10 as the comparison key.\n * Ported from projects/accounts/belal/tooling/contacts-parser/parse_contacts.py,\n * where it deduped 23.5k real contacts down to 12,866. The trailing-10 rule is\n * what makes \"01012345678\", \"+201012345678\" and \"0020 101 234 5678\" one person.\n */\nfunction phoneKey(raw) {\n  const d = String(raw || '').replace(/\\D/g, '');\n  return d.length >= 10 ? d.slice(-10) : d;\n}\n\n/**\n * Best-effort E.164. `defaultCc` is the deployment's home country, used only\n * when the number carries no international prefix of its own.\n */\nfunction toE164(raw, defaultCc = '20') {\n  let d = String(raw || '').replace(/\\D/g, '');\n  if (!d) return '';\n  if (d.startsWith('00')) d = d.slice(2);\n  // A local number: drop the trunk 0 and prepend the home country code.\n  if (d.startsWith('0')) d = defaultCc + d.slice(1);\n  // Already-national length with no country code at all.\n  else if (d.length <= 10) d = defaultCc + d;\n  return '+' + d;\n}\n\nfunction countryFromE164(e164) {\n  const d = String(e164 || '').replace(/\\D/g, '');\n  for (const [pfx, iso] of DIAL_PREFIXES) if (d.startsWith(pfx)) return iso;\n  return '';\n}\n\n/**\n * Fold an email to a comparison key. Gmail ignores dots and everything after\n * a plus, so a.b+lead@gmail.com and ab@gmail.com are the same inbox - and the\n * same person submitting twice.\n */\nfunction normEmail(raw) {\n  const s = String(raw || '').trim().toLowerCase();\n  const at = s.lastIndexOf('@');\n  if (at < 1) return '';\n  let [user, domain] = [s.slice(0, at), s.slice(at + 1)];\n  if (domain === 'googlemail.com') domain = 'gmail.com';\n  if (domain === 'gmail.com') user = user.split('+')[0].replace(/\\./g, '');\n  else user = user.split('+')[0];\n  return `${user}@${domain}`;\n}\n\nconst EMAIL_RE = /^[^\\s@]+@[^\\s@.]+\\.[^\\s@]{2,}$/;\n\nfunction domainOf(emailNorm) {\n  const d = String(emailNorm || '').split('@')[1] || '';\n  return FREE_EMAIL_DOMAINS.has(d) ? '' : d;\n}\n\n// ---------------------------------------------------------------------------\n// 3. Identity and idempotency - two different things\n// ---------------------------------------------------------------------------\n// `idem_key` identifies an EVENT: \"has this exact delivery been processed?\"\n// `person_key` identifies a HUMAN: \"have we met this person before?\"\n// The same person arriving on WhatsApp and the website produces two different\n// event keys, both correctly accepted, and one person key that decides which\n// lead record survives. Conflating them is the classic bug: dedupe by event\n// key and the second source is silently dropped; dedupe by person key and a\n// retried webhook overwrites good data.\n\nconst IDEM_SCOPES = ['intake', 'odoo_upsert', 'message', 'booking', 'approval'];\n\n/**\n * FNV-1a 64-bit in BigInt: exact, dependency-free, and identical in a Code\n * node and in `node scripts/*`. Not a security hash and not used as one.\n */\nfunction stableHash(str) {\n  let h = 0xcbf29ce484222325n;\n  const prime = 0x100000001b3n;\n  const mask = 0xffffffffffffffffn;\n  const s = String(str);\n  for (let i = 0; i < s.length; i++) {\n    h ^= BigInt(s.charCodeAt(i) & 0xff);\n    h = (h * prime) & mask;\n  }\n  return h.toString(16).padStart(16, '0');\n}\n\n/** Key order must not change the hash, so serialise with sorted keys. */\nfunction canonicalJson(v) {\n  if (v === null || typeof v !== 'object') return JSON.stringify(v ?? null);\n  if (Array.isArray(v)) return `[${v.map(canonicalJson).join(',')}]`;\n  return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonicalJson(v[k])}`).join(',')}}`;\n}\n\n/**\n * Stable across retries, distinct across genuinely separate submissions.\n *\n * A provider id is always preferred. When there is none, the key is a hash of\n * the submission's own content - NOT a time bucket. Time bucketing was the\n * first design and it is fragile at the boundary: two clicks five seconds\n * apart can straddle a bucket edge and both be accepted, which is exactly the\n * duplicate the gate exists to stop. A content hash has no boundary.\n *\n * The accepted trade-off: a person who submits a byte-identical form twice a\n * week apart is treated as one event. That is the correct reading of an\n * identical request, and the second delivery still writes an\n * `intake_duplicate_event` audit row, so it is visible rather than silent.\n */\nfunction intakeIdemKey(source, sourceRef, personKey, payload) {\n  if (sourceRef) return `intake:${source}:${sourceRef}`;\n  return `intake:${source}:${personKey}:${stableHash(canonicalJson(payload))}`;\n}\n\n/** Deterministic, so a replay of the same event rebuilds the same id. */\nfunction leadUidFrom(idemKey, receivedAtSec) {\n  const d = new Date(Number(receivedAtSec || 0) * 1000);\n  const ymd = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;\n  return `LP-${ymd}-${stableHash(idemKey).slice(0, 8).toUpperCase()}`;\n}\n\nfunction personKeyOf(lead) {\n  return lead.phone_key || lead.email_norm || `uid:${lead.lead_uid}`;\n}\n\n// ---------------------------------------------------------------------------\n// 4. Duplicate confidence\n// ---------------------------------------------------------------------------\n// Never delete. High confidence merges into the survivor; medium raises a\n// manual-review case; low is treated as a new person.\n\nconst DUP = {\n  HIGH: 0.9, // phone_key match, or email_norm match\n  MEDIUM: 0.6, // same normalised name + same company, different contact details\n};\n\nfunction dupConfidence(a, b) {\n  if (a.phone_key && a.phone_key === b.phone_key) return { score: 1.0, on: 'phone_key' };\n  if (a.email_norm && a.email_norm === b.email_norm) return { score: 0.95, on: 'email_norm' };\n  const n = (s) => String(s || '').trim().toLowerCase().replace(/\\s+/g, ' ');\n  if (n(a.full_name) && n(a.full_name) === n(b.full_name)) {\n    if (n(a.company) && n(a.company) === n(b.company)) return { score: 0.75, on: 'name+company' };\n    if (a.domain && a.domain === b.domain) return { score: 0.7, on: 'name+domain' };\n    return { score: 0.4, on: 'name only' };\n  }\n  return { score: 0, on: 'none' };\n}\n\n// ---------------------------------------------------------------------------\n// 5. Deterministic scoring\n// ---------------------------------------------------------------------------\n// The AI contributes ZERO points. If the whole AI layer is deleted, every\n// lead still scores, routes, assigns and syncs. That separation is what makes\n// requirement D's \"deterministic score\" and \"separate qualitative\n// classification\" two genuinely independent axes rather than one dressed up\n// as two.\n//\n// Every `unknown` band is worth real points, not zero. A WhatsApp lead has no\n// email, therefore no domain, therefore no enrichment - and with zero-valued\n// unknowns the arithmetic made it structurally impossible for any WhatsApp\n// lead to reach 70. For a brief whose scenario centres on WhatsApp, that is a\n// scoring bug, not a scoring policy.\n\nconst SCORE = {\n  company_size: { '201+': 20, '51-200': 16, '11-50': 12, '1-10': 6, unknown: 12 },\n  industry: { target: 15, adjacent: 8, unknown: 10 }, // `excluded` disqualifies outright\n  market: { core: 10, adjacent: 6, unknown: 5, other: 2 },\n  service: { high: 25, mid: 15, low: 5, unknown: 5 },\n  urgency: { immediate: 10, this_quarter: 6, exploring: 2, unknown: 2 },\n  completeness: { both: 6, one: 3 },\n  source: { referral: 5, website: 5, whatsapp: 4, paid_social: 2, csv_import: 1 },\n  budget: { high: 14, mid: 7, unknown: 0 },\n  penalty: { competitor_or_jobseeker: -20, disposable_email: -10 },\n  MAX: 100,\n};\n\nconst TARGET_INDUSTRIES = ['technology', 'professional services', 'real estate', 'healthcare', 'education', 'logistics'];\nconst ADJACENT_INDUSTRIES = ['retail', 'manufacturing', 'hospitality', 'construction'];\n// Out-of-scope verticals. Every agency has them; keeping the list as data\n// rather than a hardcoded branch means changing it is a config edit.\nconst EXCLUDED_INDUSTRIES = ['gambling', 'alcohol', 'tobacco', 'adult', 'lending'];\n\nconst CORE_MARKETS = ['EG', 'AE', 'SA'];\nconst ADJACENT_MARKETS = ['QA', 'KW', 'BH', 'OM', 'JO'];\n\nconst HIGH_VALUE_SERVICES = ['automation', 'ai_agent', 'rag', 'integration', 'custom_app'];\nconst MID_VALUE_SERVICES = ['consulting', 'audit', 'training'];\n\nconst DISQUALIFY_PATTERNS = /\\b(job|vacanc|hiring|cv|resume|internship|student|thesis|competitor|partnership offer|guest post|seo services|link building)\\b/i;\n\n// ---------------------------------------------------------------------------\n// 6. Bands - the brief's business rules, verbatim\n// ---------------------------------------------------------------------------\n\nconst BANDS = {\n  VIP: { min: 90, label: 'vip' }, // or the strategic-account flag\n  QUALIFIED: { min: 70, label: 'qualified' },\n  NURTURE: { min: 40, label: 'nurture' },\n  UNQUALIFIED: { min: 0, label: 'unqualified' },\n};\n\nfunction bandFor(score, strategic) {\n  if (strategic || score >= 90) return 'vip';\n  if (score >= 70) return 'qualified';\n  if (score >= 40) return 'nurture';\n  return 'unqualified';\n}\n\n// Ordinal distance is what the AI-vs-rules conflict rule compares.\nconst BAND_ORDINAL = { unqualified: 0, nurture: 1, qualified: 2, vip: 2 };\n\n// ---------------------------------------------------------------------------\n// 7. The AI contract\n// ---------------------------------------------------------------------------\n\nconst AI_SCHEMA = {\n  intent_level: 'high | medium | low',\n  urgency: 'immediate | this_quarter | exploring | unknown',\n  buying_signals: 'string[] , at most 3',\n  reason: 'string, at most 200 chars, quoting the lead not inventing',\n  confidence: 'number 0..1',\n};\n\nconst AI_IMPLIED_BAND = { high: 'qualified', medium: 'nurture', low: 'unqualified' };\n\nconst CONFLICT = {\n  MIN_CONFIDENCE: 0.7,\n  MIN_BAND_DISTANCE: 2,\n};\n\n/**\n * \"Materially conflicts\" made numeric, because a reviewer will ask what\n * material means. One clause, two constants.\n *\n * Adjacent disagreement (qualified vs nurture) is expected noise around a cut\n * point and must NOT trigger review, or the manual queue becomes the default\n * path and the automation has achieved nothing.\n */\nfunction materiallyConflicts(ruleBand, ai) {\n  if (!ai || ai.ai_status !== 'ok') return false;\n  if (Number(ai.ai_confidence) < CONFLICT.MIN_CONFIDENCE) return false;\n  const aiBand = AI_IMPLIED_BAND[ai.ai_intent];\n  if (!aiBand) return false;\n  return Math.abs(BAND_ORDINAL[aiBand] - BAND_ORDINAL[ruleBand]) >= CONFLICT.MIN_BAND_DISTANCE;\n}\n\n// ---------------------------------------------------------------------------\n// 8. Assignment - three rungs, then stop\n// ---------------------------------------------------------------------------\n// Deterministic so it is testable: least loaded first, ties broken by agent_id\n// rather than by whatever order the table happened to return.\n\nconst ASSIGN_RUNGS = [\n  'available AND handles the service category',\n  'available, any category',\n  'fallback owner, and raise an alert',\n];\n\nfunction pickOwner(agents, service, fallbackOwnerId) {\n  const load = (a) => Number(a.open_leads || 0) / Math.max(1, Number(a.capacity || 1));\n  const byLoad = (x, y) => load(x) - load(y) || String(x.agent_id).localeCompare(String(y.agent_id));\n  const free = agents.filter((a) => a.available && Number(a.open_leads) < Number(a.capacity));\n  const matched = free.filter((a) => String(a.services || '').split(',').map((s) => s.trim()).includes(service));\n  if (matched.length) return { agent_id: matched.sort(byLoad)[0].agent_id, rung: 1 };\n  if (free.length) return { agent_id: free.sort(byLoad)[0].agent_id, rung: 2 };\n  return { agent_id: fallbackOwnerId, rung: 3, alert: true };\n}\n\n// ---------------------------------------------------------------------------\n// 9. Odoo stage map\n// ---------------------------------------------------------------------------\n// Lost is NOT a stage. In Odoo it is active=false + probability=0 + a lost\n// reason, which is why every duplicate search must pass {active_test: false}:\n// without it a previously-lost lead is invisible and gets created again.\n\nconst STAGES = {\n  NEW: 'New',\n  DATA_COMPLETION: 'Data Completion',\n  MANUAL_REVIEW: 'Manual Review',\n  AWAITING_APPROVAL: 'Awaiting Approval',\n  QUALIFIED: 'Qualified',\n  NURTURE: 'Nurture',\n  CONTACTED: 'Proposition',\n  BOOKED: 'Meeting Booked',\n  WON: 'Won',\n};\n\n// Stages Odoo does not ship with, created by LP-00 Setup.\nconst STAGES_TO_CREATE = [\n  { name: 'Data Completion', sequence: 5 },\n  { name: 'Manual Review', sequence: 6 },\n  { name: 'Awaiting Approval', sequence: 7 },\n  { name: 'Nurture', sequence: 8 },\n  { name: 'Meeting Booked', sequence: 30 },\n];\n\n// Business event -> the stage the opportunity moves to. This table IS the\n// \"dynamic sales funnel\" requirement; nothing moves a stage except a lookup\n// in here, so the funnel behaviour is one readable object rather than\n// conditionals scattered across nine workflows.\nconst STAGE_TRANSITIONS = {\n  lead_created: STAGES.NEW,\n  missing_critical_data: STAGES.DATA_COMPLETION,\n  duplicate_ambiguous: STAGES.MANUAL_REVIEW,\n  ai_rule_conflict: STAGES.MANUAL_REVIEW,\n  vip_pending_approval: STAGES.AWAITING_APPROVAL,\n  vip_approved: STAGES.QUALIFIED,\n  qualified_assigned: STAGES.QUALIFIED,\n  nurture_assigned: STAGES.NURTURE,\n  confirmation_sent: STAGES.CONTACTED,\n  meeting_booked: STAGES.BOOKED,\n  converted: STAGES.WON,\n};\n\n// Events that close a lead instead of moving it. Handled as active=false.\nconst LOST_REASONS = {\n  vip_rejected: 'Rejected by manager',\n  opted_out: 'Opted out',\n  unqualified_closed: 'Below qualification threshold',\n  sequence_exhausted: 'No response after full sequence',\n  duplicate_merged: 'Merged into an existing opportunity',\n};\n\n// ---------------------------------------------------------------------------\n// 10. Follow-up cadence\n// ---------------------------------------------------------------------------\n// Three steps with three genuinely different conditions: a relative-hours\n// delay, a relative-days delay, and a score-conditional step.\n\nconst CADENCE = {\n  qualified: [\n    { step: 1, delay_s: 3600, template: 'q_fu1', condition: 'always' },\n    { step: 2, delay_s: 86400, template: 'q_fu2', condition: 'always' },\n    { step: 3, delay_s: 259200, template: 'q_fu3', condition: 'score>=85' },\n  ],\n  nurture: [\n    { step: 1, delay_s: 172800, template: 'n_fu1', condition: 'always' },\n    { step: 2, delay_s: 604800, template: 'n_fu2', condition: 'always' },\n    { step: 3, delay_s: 1814400, template: 'n_fu3', condition: 'always' },\n  ],\n};\n\nconst SLA_SECONDS = 1800; // 30 minutes, per the brief's SLA Breach rule\n\n// Any of these cancels every pending job for the lead, immediately.\nconst STOP_REASONS = ['replied', 'booked', 'opted_out', 'closed', 'merged'];\n\n// ---------------------------------------------------------------------------\n// 11. Retry policy\n// ---------------------------------------------------------------------------\n// Capped at 8s, not 60s: the gateway is called with waitForSubWorkflow, so a\n// long backoff holds the caller open and can blow a webhook response window.\n// Bounded by tries AND by total elapsed, so no path can loop forever.\n\nconst RETRY = {\n  MAX_TRIES: 3,\n  BASE_MS: 500,\n  CAP_MS: 8000,\n  JITTER: 0.25,\n  RETRYABLE_STATUS: [408, 425, 429, 500, 502, 503, 504],\n  // Anything else is permanent and goes straight to the dead-letter queue.\n};\n\n/**\n * Exponential backoff with jitter, clamped LAST.\n *\n * The obvious ordering - cap, then jitter - is wrong: +/-25% applied after the\n * cap returns up to 10s from an \"8s cap\", so the cap is not a cap. A flaky\n * unit test caught this, which is the only reason it is not in the shipped\n * workflows.\n */\nfunction backoffMs(attempt) {\n  const raw = RETRY.BASE_MS * Math.pow(2, Math.max(0, attempt - 1));\n  const jittered = raw * (1 - RETRY.JITTER + Math.random() * RETRY.JITTER * 2);\n  return Math.max(RETRY.BASE_MS, Math.min(RETRY.CAP_MS, Math.round(jittered)));\n}\n\n// ---------------------------------------------------------------------------\n// 12. Data tables\n// ---------------------------------------------------------------------------\n// Seven tables, created by LP-00. Data Table columns are string | number |\n// boolean | date, and the schema is IMMUTABLE through the public API, so a\n// missed column means dropping and recreating the table. They are listed here\n// in full for that reason.\n//\n// Timestamps are stored as epoch SECONDS in number columns. Numeric\n// comparison is unambiguous in the Data Table filter operators, which is what\n// the tick's `due_at <= now` claim depends on.\n\nconst TABLES = {\n  lead: ['lead_uid', 'source', 'source_ref', 'received_at', 'full_name', 'email_raw', 'email_norm',\n    'phone_raw', 'phone_e164', 'phone_key', 'country', 'company', 'domain', 'service_interest',\n    'free_text', 'consent', 'consent_source', 'score', 'score_breakdown_json', 'band',\n    'ai_status', 'ai_intent', 'ai_urgency', 'ai_signals', 'ai_reason', 'ai_confidence',\n    'owner_id', 'assign_rung', 'odoo_lead_id', 'odoo_stage', 'approval_state', 'approval_by',\n    'status', 'merged_into', 'raw_json', 'updated_at'],\n  idem: ['idem_key', 'scope', 'lead_uid', 'state', 'result_ref', 'claimed_at', 'completed_at', 'attempts'],\n  person_index: ['person_key', 'lead_uid', 'email_norm', 'phone_key', 'created_at'],\n  jobs: ['job_id', 'lead_uid', 'job_type', 'step', 'template', 'due_at', 'state', 'attempts',\n    'claimed_at', 'result', 'cancel_reason'],\n  agents: ['agent_id', 'name', 'email', 'services', 'capacity', 'open_leads', 'available', 'odoo_user_id'],\n  audit: ['event_id', 'lead_uid', 'ts', 'workflow', 'execution_id', 'type', 'decision', 'detail_json'],\n  dlq: ['dlq_id', 'lead_uid', 'stage_failed', 'error_class', 'error', 'payload_json', 'attempts',\n    'state', 'first_seen', 'last_seen'],\n};\n\n// The audit log is the audit trail. n8n's own execution log is not: it is\n// pruned (14 days by default) and it is not queryable by lead.\nconst AUDIT_TYPES = [\n  'intake_received', 'intake_duplicate_event', 'validation_failed', 'duplicate_decision',\n  'enrichment', 'scored', 'ai_classified', 'ai_fallback', 'conflict_detected', 'banded',\n  'assigned', 'odoo_upserted', 'stage_changed', 'message_sent', 'message_suppressed',\n  'job_scheduled', 'job_cancelled', 'sla_breached', 'approval_requested', 'approval_decided',\n  'error', 'replayed',\n];\n\n// `C` is the namespace the inlined copy uses inside n8n Code nodes. The build\n// step concatenates this file into each node that needs it and strips the\n// `require` from scorer.js, so `C` is already in scope there. Guarding the\n// CommonJS export keeps the same file loadable by the test runner.\nconst C = {\n  LEAD_SCHEMA, CRITICAL_FIELDS, DIAL_PREFIXES, FREE_EMAIL_DOMAINS, DISPOSABLE_EMAIL_DOMAINS,\n  phoneKey, toE164, countryFromE164, normEmail, EMAIL_RE, domainOf,\n  IDEM_SCOPES, intakeIdemKey, personKeyOf, stableHash, canonicalJson, leadUidFrom, DUP, dupConfidence,\n  SCORE, TARGET_INDUSTRIES, ADJACENT_INDUSTRIES, EXCLUDED_INDUSTRIES, CORE_MARKETS,\n  ADJACENT_MARKETS, HIGH_VALUE_SERVICES, MID_VALUE_SERVICES, DISQUALIFY_PATTERNS,\n  BANDS, bandFor, BAND_ORDINAL, AI_SCHEMA, AI_IMPLIED_BAND, CONFLICT, materiallyConflicts,\n  ASSIGN_RUNGS, pickOwner, STAGES, STAGES_TO_CREATE, STAGE_TRANSITIONS, LOST_REASONS,\n  CADENCE, SLA_SECONDS, STOP_REASONS, RETRY, backoffMs, TABLES, AUDIT_TYPES,\n};\n\nif (typeof module !== 'undefined' && module.exports) module.exports = C;\n\n/**\n * Deterministic lead scoring. This is the exact body inlined into the\n * `Score Lead` Code node in LP-02, kept here so it can be unit-tested outside\n * n8n (see scripts/test-scoring.mjs).\n *\n * Two rules govern everything below:\n *   1. The AI contributes zero points. Delete the AI layer and this still runs.\n *   2. Every factor emits a breakdown line. A score you cannot explain line by\n *      line is a score you cannot defend when a salesperson disputes it.\n */\n\n\nfunction bucketSize(size) {\n  const n = Number(size);\n  if (!Number.isFinite(n) || n <= 0) return 'unknown';\n  if (n >= 201) return '201+';\n  if (n >= 51) return '51-200';\n  if (n >= 11) return '11-50';\n  return '1-10';\n}\n\nfunction bucketIndustry(industry) {\n  const s = String(industry || '').trim().toLowerCase();\n  if (!s) return 'unknown';\n  if (C.EXCLUDED_INDUSTRIES.some((x) => s.includes(x))) return 'excluded';\n  if (C.TARGET_INDUSTRIES.some((x) => s.includes(x))) return 'target';\n  if (C.ADJACENT_INDUSTRIES.some((x) => s.includes(x))) return 'adjacent';\n  return 'unknown';\n}\n\nfunction bucketMarket(country) {\n  const c = String(country || '').toUpperCase();\n  if (!c) return 'unknown';\n  if (C.CORE_MARKETS.includes(c)) return 'core';\n  if (C.ADJACENT_MARKETS.includes(c)) return 'adjacent';\n  return 'other';\n}\n\nfunction bucketService(service) {\n  const s = String(service || '').trim().toLowerCase().replace(/[\\s-]+/g, '_');\n  if (!s) return 'unknown';\n  if (C.HIGH_VALUE_SERVICES.includes(s)) return 'high';\n  if (C.MID_VALUE_SERVICES.includes(s)) return 'mid';\n  return 'low';\n}\n\nfunction bucketBudget(budget) {\n  const n = Number(String(budget || '').replace(/[^\\d.]/g, ''));\n  if (!Number.isFinite(n) || n <= 0) return 'unknown';\n  if (n >= 5000) return 'high';\n  if (n >= 1000) return 'mid';\n  return 'unknown';\n}\n\n/**\n * @param {object} lead      canonical lead\n * @param {object} enrich    {company_size, industry, country, strategic} or {} when unavailable\n * @returns {{score, band, strategic, disqualified, breakdown}}\n */\nfunction scoreLead(lead, enrich = {}) {\n  const breakdown = [];\n  let total = 0;\n  const add = (factor, value, points, note) => {\n    total += points;\n    breakdown.push({ factor, value, points, note: note || '' });\n  };\n\n  // Enrichment fills gaps; it never overrides something the lead stated.\n  const country = lead.country || enrich.country || '';\n  const industryBucket = bucketIndustry(enrich.industry);\n\n  // Hard disqualifier: an out-of-scope vertical is worth zero regardless of\n  // every other signal, so it short-circuits before any points are awarded.\n  if (industryBucket === 'excluded') {\n    return {\n      score: 0,\n      band: 'unqualified',\n      strategic: false,\n      disqualified: true,\n      disqualify_reason: `excluded industry: ${enrich.industry}`,\n      breakdown: [{ factor: 'industry', value: enrich.industry, points: 0, note: 'excluded vertical, hard disqualify' }],\n    };\n  }\n\n  const freeText = `${lead.free_text || ''} ${lead.service_interest || ''}`;\n  if (C.DISQUALIFY_PATTERNS.test(freeText)) {\n    add('intent_penalty', 'job/competitor/solicitation language',\n      C.SCORE.penalty.competitor_or_jobseeker, 'matched the disqualify pattern');\n  }\n\n  const sizeB = bucketSize(enrich.company_size);\n  add('company_size', sizeB, C.SCORE.company_size[sizeB],\n    sizeB === 'unknown' ? 'not enriched, scored at the unknown band rather than zero' : '');\n\n  add('industry', industryBucket, C.SCORE.industry[industryBucket],\n    industryBucket === 'unknown' ? 'not enriched, scored at the unknown band rather than zero' : '');\n\n  const marketB = bucketMarket(country);\n  add('market', marketB, C.SCORE.market[marketB],\n    lead.country ? '' : (country ? 'derived from the E.164 prefix' : 'no country signal'));\n\n  const serviceB = bucketService(lead.service_interest);\n  add('service', serviceB, C.SCORE.service[serviceB]);\n\n  const urgency = String(lead.stated_urgency || 'unknown');\n  add('urgency', urgency, C.SCORE.urgency[urgency] ?? C.SCORE.urgency.unknown);\n\n  const hasEmail = !!lead.email_norm && C.EMAIL_RE.test(lead.email_norm);\n  const hasPhone = !!lead.phone_key && lead.phone_key.length >= 10;\n  const completeness = hasEmail && hasPhone ? 'both' : 'one';\n  add('completeness', completeness, C.SCORE.completeness[completeness]);\n\n  const src = String(lead.source || '').toLowerCase();\n  add('source', src, C.SCORE.source[src] ?? 0);\n\n  const budgetB = bucketBudget(lead.stated_budget);\n  add('budget', budgetB, C.SCORE.budget[budgetB]);\n\n  const emailDomain = String(lead.email_norm || '').split('@')[1] || '';\n  if (C.DISPOSABLE_EMAIL_DOMAINS.has(emailDomain)) {\n    add('disposable_email', emailDomain, C.SCORE.penalty.disposable_email, 'throwaway inbox');\n  }\n\n  const raw = total;\n  const score = Math.max(0, Math.min(C.SCORE.MAX, raw));\n  if (raw !== score) breakdown.push({ factor: 'clamp', value: `${raw} -> ${score}`, points: 0, note: 'clamped to 0..100' });\n\n  const strategic = String(enrich.strategic) === 'true' || enrich.strategic === true;\n  if (strategic) breakdown.push({ factor: 'strategic_account', value: true, points: 0, note: 'forces the VIP band regardless of score' });\n\n  return { score, band: C.bandFor(score, strategic), strategic, disqualified: false, breakdown };\n}\n\nif (typeof module !== 'undefined' && module.exports) {\n  module.exports = { scoreLead, bucketSize, bucketIndustry, bucketMarket, bucketService, bucketBudget };\n}\n\n// ===== END shared runtime =====\nconst plan = $('Read Chaos Plan').first().json;\nconst rows = $input.all().map(i => i.json).filter(r => r && r.idem_key === plan.counter_key);\nconst seen = plan.reset ? 0 : Number(rows[0]?.attempts || 0);\nconst next = seen + 1;\n\n// Fail while we are still inside the requested number of failures.\nconst shouldFail = plan.chaos_requested && next <= plan.times;\nconst behaviour = shouldFail ? plan.fail : 'ok';\n\nreturn [{ json: {\n  ...plan,\n  seen, attempts: next, behaviour,\n  note: plan.chaos_requested\n    ? ('call ' + next + ' of a \"' + plan.fail + ' x' + plan.times + '\" plan -> ' + behaviour)\n    : 'no chaos requested',\n} }];\n"
+      }
+    },
+    {
+      "id": "fc5c7077-e22a-412b-8470-f17ddf10d9ba",
+      "name": "Save Counter",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        300,
+        -200
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "lp_idem"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "idem_key",
+              "condition": "eq",
+              "keyValue": "={{ $json.counter_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "idem_key": "={{ $json.counter_key }}",
+            "scope": "mock",
+            "lead_uid": "={{ $json.key }}",
+            "state": "={{ $json.behaviour }}",
+            "result_ref": "={{ $json.note }}",
+            "claimed_at": "={{ Math.floor(Date.now()/1000) }}",
+            "completed_at": 0,
+            "attempts": "={{ $json.attempts }}"
+          },
+          "matchingColumns": [
+            "idem_key"
+          ],
+          "schema": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "eb5eb2fd-81d4-4f33-8138-a691434d9444",
+      "name": "Route Behaviour",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        540,
+        -200
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "b-ok",
+                    "leftValue": "={{ $('Decide Behaviour').first().json.behaviour }}",
+                    "rightValue": "ok",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "ok"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "b-timeout",
+                    "leftValue": "={{ $('Decide Behaviour').first().json.behaviour }}",
+                    "rightValue": "timeout",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "timeout"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "b-429",
+                    "leftValue": "={{ $('Decide Behaviour').first().json.behaviour }}",
+                    "rightValue": "429",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "429"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "b-malformed",
+                    "leftValue": "={{ $('Decide Behaviour').first().json.behaviour }}",
+                    "rightValue": "malformed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "malformed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "b-500",
+                    "leftValue": "={{ $('Decide Behaviour').first().json.behaviour }}",
+                    "rightValue": "500",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "500"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "b-auth",
+                    "leftValue": "={{ $('Decide Behaviour').first().json.behaviour }}",
+                    "rightValue": "auth",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "auth"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "unhandled"
+        }
+      }
+    },
+    {
+      "id": "d525d05e-6eae-4253-800f-032089741038",
+      "name": "Serve Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        -200
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ===== BEGIN shared runtime, generated from 02_Workflows/_shared/ =====\n// Do not edit here. Edit the source files and re-run scripts/build-workflows.js.\n// The same source is unit-tested by scripts/test-scoring.js.\n/**\n * Lead Intelligence Pipeline - canonical constants.\n *\n * n8n Code nodes cannot import files, so the relevant slice of this file is\n * inlined into each node. THIS FILE IS THE SOURCE OF TRUTH: change it here\n * first, then propagate. Every inlined copy carries the comment\n * `// from _shared/constants.js` so the copies are greppable.\n *\n * Nothing here reads a secret. Per-deployment values live in each workflow's\n * `Config` node, because this n8n instance runs with\n * N8N_BLOCK_ENV_ACCESS_IN_NODE=true and $env throws.\n */\n\n// ---------------------------------------------------------------------------\n// 1. Canonical lead schema\n// ---------------------------------------------------------------------------\n// Every source is normalised into exactly this shape before anything else\n// looks at it. `raw_json` keeps the original payload so a replay can prove\n// what actually arrived.\n\nconst LEAD_SCHEMA = {\n  lead_uid: 'string', // LP-<yyyymmdd>-<8 hex>, generated once at intake\n  source: 'string', // website | whatsapp | csv_import\n  source_ref: 'string', // provider id when the source gives one (wamid, form id, csv row)\n  received_at: 'number', // epoch seconds\n  full_name: 'string',\n  email_raw: 'string',\n  email_norm: 'string', // lowercased, gmail dots/plus-tags folded\n  phone_raw: 'string',\n  phone_e164: 'string', // +<cc><national>, digits only after the +\n  phone_key: 'string', // trailing 10 digits, the comparison key\n  country: 'string', // ISO-2, derived from the E.164 prefix when not supplied\n  company: 'string',\n  domain: 'string', // from email_norm when it is not a free provider\n  service_interest: 'string',\n  free_text: 'string', // the \"what do you need\" blob the AI reads\n  consent: 'string', // granted | denied | unknown\n  consent_source: 'string', // form_checkbox | inbound_initiated | import_attested\n  // --- filled downstream ---\n  score: 'number',\n  score_breakdown_json: 'string',\n  band: 'string', // vip | qualified | nurture | unqualified | data_completion | manual_review\n  ai_status: 'string', // ok | unavailable | skipped\n  ai_intent: 'string', // high | medium | low\n  ai_urgency: 'string',\n  ai_signals: 'string',\n  ai_reason: 'string',\n  ai_confidence: 'number',\n  owner_id: 'string',\n  assign_rung: 'number', // which fallback rung assigned it, 1..3\n  odoo_lead_id: 'number',\n  odoo_stage: 'string',\n  approval_state: 'string', // not_required | pending | approved | rejected\n  approval_by: 'string',\n  status: 'string', // active | merged | closed\n  merged_into: 'string', // lead_uid of the survivor, when this one lost a dedupe\n  raw_json: 'string',\n  updated_at: 'number',\n};\n\n// Critical fields. Missing any of these routes to the Data Completion path\n// instead of scoring. `service_interest` is deliberately NOT critical: it is\n// recoverable from free text and from the follow-up conversation, and making\n// it critical sent most WhatsApp leads to a human for no reason.\nconst CRITICAL_FIELDS = ['full_name', 'contactable', 'consent'];\n// `contactable` is satisfied by EITHER a valid email OR a valid phone.\n\n// ---------------------------------------------------------------------------\n// 2. Normalisation\n// ---------------------------------------------------------------------------\n\n// Country dial prefixes, longest-first so +1868 beats +1.\n// Only the markets this business actually sees; everything else resolves to ''.\nconst DIAL_PREFIXES = [\n  ['971', 'AE'], ['966', 'SA'], ['974', 'QA'], ['965', 'KW'], ['973', 'BH'],\n  ['968', 'OM'], ['962', 'JO'], ['961', 'LB'], ['212', 'MA'], ['216', 'TN'],\n  ['213', 'DZ'], ['249', 'SD'], ['218', 'LY'], ['964', 'IQ'],\n  ['20', 'EG'], ['44', 'GB'], ['49', 'DE'], ['33', 'FR'], ['91', 'IN'],\n  ['1', 'US'],\n];\n\nconst FREE_EMAIL_DOMAINS = new Set([\n  'gmail.com', 'googlemail.com', 'yahoo.com', 'hotmail.com', 'outlook.com',\n  'live.com', 'icloud.com', 'aol.com', 'proton.me', 'protonmail.com',\n  'yandex.com', 'mail.com', 'gmx.com',\n]);\n\nconst DISPOSABLE_EMAIL_DOMAINS = new Set([\n  'mailinator.com', 'tempmail.com', 'guerrillamail.com', '10minutemail.com',\n  'throwaway.email', 'yopmail.com', 'trashmail.com', 'sharklasers.com',\n]);\n\n/**\n * Digits-only, then take the trailing 10 as the comparison key.\n * Ported from projects/accounts/belal/tooling/contacts-parser/parse_contacts.py,\n * where it deduped 23.5k real contacts down to 12,866. The trailing-10 rule is\n * what makes \"01012345678\", \"+201012345678\" and \"0020 101 234 5678\" one person.\n */\nfunction phoneKey(raw) {\n  const d = String(raw || '').replace(/\\D/g, '');\n  return d.length >= 10 ? d.slice(-10) : d;\n}\n\n/**\n * Best-effort E.164. `defaultCc` is the deployment's home country, used only\n * when the number carries no international prefix of its own.\n */\nfunction toE164(raw, defaultCc = '20') {\n  let d = String(raw || '').replace(/\\D/g, '');\n  if (!d) return '';\n  if (d.startsWith('00')) d = d.slice(2);\n  // A local number: drop the trunk 0 and prepend the home country code.\n  if (d.startsWith('0')) d = defaultCc + d.slice(1);\n  // Already-national length with no country code at all.\n  else if (d.length <= 10) d = defaultCc + d;\n  return '+' + d;\n}\n\nfunction countryFromE164(e164) {\n  const d = String(e164 || '').replace(/\\D/g, '');\n  for (const [pfx, iso] of DIAL_PREFIXES) if (d.startsWith(pfx)) return iso;\n  return '';\n}\n\n/**\n * Fold an email to a comparison key. Gmail ignores dots and everything after\n * a plus, so a.b+lead@gmail.com and ab@gmail.com are the same inbox - and the\n * same person submitting twice.\n */\nfunction normEmail(raw) {\n  const s = String(raw || '').trim().toLowerCase();\n  const at = s.lastIndexOf('@');\n  if (at < 1) return '';\n  let [user, domain] = [s.slice(0, at), s.slice(at + 1)];\n  if (domain === 'googlemail.com') domain = 'gmail.com';\n  if (domain === 'gmail.com') user = user.split('+')[0].replace(/\\./g, '');\n  else user = user.split('+')[0];\n  return `${user}@${domain}`;\n}\n\nconst EMAIL_RE = /^[^\\s@]+@[^\\s@.]+\\.[^\\s@]{2,}$/;\n\nfunction domainOf(emailNorm) {\n  const d = String(emailNorm || '').split('@')[1] || '';\n  return FREE_EMAIL_DOMAINS.has(d) ? '' : d;\n}\n\n// ---------------------------------------------------------------------------\n// 3. Identity and idempotency - two different things\n// ---------------------------------------------------------------------------\n// `idem_key` identifies an EVENT: \"has this exact delivery been processed?\"\n// `person_key` identifies a HUMAN: \"have we met this person before?\"\n// The same person arriving on WhatsApp and the website produces two different\n// event keys, both correctly accepted, and one person key that decides which\n// lead record survives. Conflating them is the classic bug: dedupe by event\n// key and the second source is silently dropped; dedupe by person key and a\n// retried webhook overwrites good data.\n\nconst IDEM_SCOPES = ['intake', 'odoo_upsert', 'message', 'booking', 'approval'];\n\n/**\n * FNV-1a 64-bit in BigInt: exact, dependency-free, and identical in a Code\n * node and in `node scripts/*`. Not a security hash and not used as one.\n */\nfunction stableHash(str) {\n  let h = 0xcbf29ce484222325n;\n  const prime = 0x100000001b3n;\n  const mask = 0xffffffffffffffffn;\n  const s = String(str);\n  for (let i = 0; i < s.length; i++) {\n    h ^= BigInt(s.charCodeAt(i) & 0xff);\n    h = (h * prime) & mask;\n  }\n  return h.toString(16).padStart(16, '0');\n}\n\n/** Key order must not change the hash, so serialise with sorted keys. */\nfunction canonicalJson(v) {\n  if (v === null || typeof v !== 'object') return JSON.stringify(v ?? null);\n  if (Array.isArray(v)) return `[${v.map(canonicalJson).join(',')}]`;\n  return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonicalJson(v[k])}`).join(',')}}`;\n}\n\n/**\n * Stable across retries, distinct across genuinely separate submissions.\n *\n * A provider id is always preferred. When there is none, the key is a hash of\n * the submission's own content - NOT a time bucket. Time bucketing was the\n * first design and it is fragile at the boundary: two clicks five seconds\n * apart can straddle a bucket edge and both be accepted, which is exactly the\n * duplicate the gate exists to stop. A content hash has no boundary.\n *\n * The accepted trade-off: a person who submits a byte-identical form twice a\n * week apart is treated as one event. That is the correct reading of an\n * identical request, and the second delivery still writes an\n * `intake_duplicate_event` audit row, so it is visible rather than silent.\n */\nfunction intakeIdemKey(source, sourceRef, personKey, payload) {\n  if (sourceRef) return `intake:${source}:${sourceRef}`;\n  return `intake:${source}:${personKey}:${stableHash(canonicalJson(payload))}`;\n}\n\n/** Deterministic, so a replay of the same event rebuilds the same id. */\nfunction leadUidFrom(idemKey, receivedAtSec) {\n  const d = new Date(Number(receivedAtSec || 0) * 1000);\n  const ymd = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;\n  return `LP-${ymd}-${stableHash(idemKey).slice(0, 8).toUpperCase()}`;\n}\n\nfunction personKeyOf(lead) {\n  return lead.phone_key || lead.email_norm || `uid:${lead.lead_uid}`;\n}\n\n// ---------------------------------------------------------------------------\n// 4. Duplicate confidence\n// ---------------------------------------------------------------------------\n// Never delete. High confidence merges into the survivor; medium raises a\n// manual-review case; low is treated as a new person.\n\nconst DUP = {\n  HIGH: 0.9, // phone_key match, or email_norm match\n  MEDIUM: 0.6, // same normalised name + same company, different contact details\n};\n\nfunction dupConfidence(a, b) {\n  if (a.phone_key && a.phone_key === b.phone_key) return { score: 1.0, on: 'phone_key' };\n  if (a.email_norm && a.email_norm === b.email_norm) return { score: 0.95, on: 'email_norm' };\n  const n = (s) => String(s || '').trim().toLowerCase().replace(/\\s+/g, ' ');\n  if (n(a.full_name) && n(a.full_name) === n(b.full_name)) {\n    if (n(a.company) && n(a.company) === n(b.company)) return { score: 0.75, on: 'name+company' };\n    if (a.domain && a.domain === b.domain) return { score: 0.7, on: 'name+domain' };\n    return { score: 0.4, on: 'name only' };\n  }\n  return { score: 0, on: 'none' };\n}\n\n// ---------------------------------------------------------------------------\n// 5. Deterministic scoring\n// ---------------------------------------------------------------------------\n// The AI contributes ZERO points. If the whole AI layer is deleted, every\n// lead still scores, routes, assigns and syncs. That separation is what makes\n// requirement D's \"deterministic score\" and \"separate qualitative\n// classification\" two genuinely independent axes rather than one dressed up\n// as two.\n//\n// Every `unknown` band is worth real points, not zero. A WhatsApp lead has no\n// email, therefore no domain, therefore no enrichment - and with zero-valued\n// unknowns the arithmetic made it structurally impossible for any WhatsApp\n// lead to reach 70. For a brief whose scenario centres on WhatsApp, that is a\n// scoring bug, not a scoring policy.\n\nconst SCORE = {\n  company_size: { '201+': 20, '51-200': 16, '11-50': 12, '1-10': 6, unknown: 12 },\n  industry: { target: 15, adjacent: 8, unknown: 10 }, // `excluded` disqualifies outright\n  market: { core: 10, adjacent: 6, unknown: 5, other: 2 },\n  service: { high: 25, mid: 15, low: 5, unknown: 5 },\n  urgency: { immediate: 10, this_quarter: 6, exploring: 2, unknown: 2 },\n  completeness: { both: 6, one: 3 },\n  source: { referral: 5, website: 5, whatsapp: 4, paid_social: 2, csv_import: 1 },\n  budget: { high: 14, mid: 7, unknown: 0 },\n  penalty: { competitor_or_jobseeker: -20, disposable_email: -10 },\n  MAX: 100,\n};\n\nconst TARGET_INDUSTRIES = ['technology', 'professional services', 'real estate', 'healthcare', 'education', 'logistics'];\nconst ADJACENT_INDUSTRIES = ['retail', 'manufacturing', 'hospitality', 'construction'];\n// Out-of-scope verticals. Every agency has them; keeping the list as data\n// rather than a hardcoded branch means changing it is a config edit.\nconst EXCLUDED_INDUSTRIES = ['gambling', 'alcohol', 'tobacco', 'adult', 'lending'];\n\nconst CORE_MARKETS = ['EG', 'AE', 'SA'];\nconst ADJACENT_MARKETS = ['QA', 'KW', 'BH', 'OM', 'JO'];\n\nconst HIGH_VALUE_SERVICES = ['automation', 'ai_agent', 'rag', 'integration', 'custom_app'];\nconst MID_VALUE_SERVICES = ['consulting', 'audit', 'training'];\n\nconst DISQUALIFY_PATTERNS = /\\b(job|vacanc|hiring|cv|resume|internship|student|thesis|competitor|partnership offer|guest post|seo services|link building)\\b/i;\n\n// ---------------------------------------------------------------------------\n// 6. Bands - the brief's business rules, verbatim\n// ---------------------------------------------------------------------------\n\nconst BANDS = {\n  VIP: { min: 90, label: 'vip' }, // or the strategic-account flag\n  QUALIFIED: { min: 70, label: 'qualified' },\n  NURTURE: { min: 40, label: 'nurture' },\n  UNQUALIFIED: { min: 0, label: 'unqualified' },\n};\n\nfunction bandFor(score, strategic) {\n  if (strategic || score >= 90) return 'vip';\n  if (score >= 70) return 'qualified';\n  if (score >= 40) return 'nurture';\n  return 'unqualified';\n}\n\n// Ordinal distance is what the AI-vs-rules conflict rule compares.\nconst BAND_ORDINAL = { unqualified: 0, nurture: 1, qualified: 2, vip: 2 };\n\n// ---------------------------------------------------------------------------\n// 7. The AI contract\n// ---------------------------------------------------------------------------\n\nconst AI_SCHEMA = {\n  intent_level: 'high | medium | low',\n  urgency: 'immediate | this_quarter | exploring | unknown',\n  buying_signals: 'string[] , at most 3',\n  reason: 'string, at most 200 chars, quoting the lead not inventing',\n  confidence: 'number 0..1',\n};\n\nconst AI_IMPLIED_BAND = { high: 'qualified', medium: 'nurture', low: 'unqualified' };\n\nconst CONFLICT = {\n  MIN_CONFIDENCE: 0.7,\n  MIN_BAND_DISTANCE: 2,\n};\n\n/**\n * \"Materially conflicts\" made numeric, because a reviewer will ask what\n * material means. One clause, two constants.\n *\n * Adjacent disagreement (qualified vs nurture) is expected noise around a cut\n * point and must NOT trigger review, or the manual queue becomes the default\n * path and the automation has achieved nothing.\n */\nfunction materiallyConflicts(ruleBand, ai) {\n  if (!ai || ai.ai_status !== 'ok') return false;\n  if (Number(ai.ai_confidence) < CONFLICT.MIN_CONFIDENCE) return false;\n  const aiBand = AI_IMPLIED_BAND[ai.ai_intent];\n  if (!aiBand) return false;\n  return Math.abs(BAND_ORDINAL[aiBand] - BAND_ORDINAL[ruleBand]) >= CONFLICT.MIN_BAND_DISTANCE;\n}\n\n// ---------------------------------------------------------------------------\n// 8. Assignment - three rungs, then stop\n// ---------------------------------------------------------------------------\n// Deterministic so it is testable: least loaded first, ties broken by agent_id\n// rather than by whatever order the table happened to return.\n\nconst ASSIGN_RUNGS = [\n  'available AND handles the service category',\n  'available, any category',\n  'fallback owner, and raise an alert',\n];\n\nfunction pickOwner(agents, service, fallbackOwnerId) {\n  const load = (a) => Number(a.open_leads || 0) / Math.max(1, Number(a.capacity || 1));\n  const byLoad = (x, y) => load(x) - load(y) || String(x.agent_id).localeCompare(String(y.agent_id));\n  const free = agents.filter((a) => a.available && Number(a.open_leads) < Number(a.capacity));\n  const matched = free.filter((a) => String(a.services || '').split(',').map((s) => s.trim()).includes(service));\n  if (matched.length) return { agent_id: matched.sort(byLoad)[0].agent_id, rung: 1 };\n  if (free.length) return { agent_id: free.sort(byLoad)[0].agent_id, rung: 2 };\n  return { agent_id: fallbackOwnerId, rung: 3, alert: true };\n}\n\n// ---------------------------------------------------------------------------\n// 9. Odoo stage map\n// ---------------------------------------------------------------------------\n// Lost is NOT a stage. In Odoo it is active=false + probability=0 + a lost\n// reason, which is why every duplicate search must pass {active_test: false}:\n// without it a previously-lost lead is invisible and gets created again.\n\nconst STAGES = {\n  NEW: 'New',\n  DATA_COMPLETION: 'Data Completion',\n  MANUAL_REVIEW: 'Manual Review',\n  AWAITING_APPROVAL: 'Awaiting Approval',\n  QUALIFIED: 'Qualified',\n  NURTURE: 'Nurture',\n  CONTACTED: 'Proposition',\n  BOOKED: 'Meeting Booked',\n  WON: 'Won',\n};\n\n// Stages Odoo does not ship with, created by LP-00 Setup.\nconst STAGES_TO_CREATE = [\n  { name: 'Data Completion', sequence: 5 },\n  { name: 'Manual Review', sequence: 6 },\n  { name: 'Awaiting Approval', sequence: 7 },\n  { name: 'Nurture', sequence: 8 },\n  { name: 'Meeting Booked', sequence: 30 },\n];\n\n// Business event -> the stage the opportunity moves to. This table IS the\n// \"dynamic sales funnel\" requirement; nothing moves a stage except a lookup\n// in here, so the funnel behaviour is one readable object rather than\n// conditionals scattered across nine workflows.\nconst STAGE_TRANSITIONS = {\n  lead_created: STAGES.NEW,\n  missing_critical_data: STAGES.DATA_COMPLETION,\n  duplicate_ambiguous: STAGES.MANUAL_REVIEW,\n  ai_rule_conflict: STAGES.MANUAL_REVIEW,\n  vip_pending_approval: STAGES.AWAITING_APPROVAL,\n  vip_approved: STAGES.QUALIFIED,\n  qualified_assigned: STAGES.QUALIFIED,\n  nurture_assigned: STAGES.NURTURE,\n  confirmation_sent: STAGES.CONTACTED,\n  meeting_booked: STAGES.BOOKED,\n  converted: STAGES.WON,\n};\n\n// Events that close a lead instead of moving it. Handled as active=false.\nconst LOST_REASONS = {\n  vip_rejected: 'Rejected by manager',\n  opted_out: 'Opted out',\n  unqualified_closed: 'Below qualification threshold',\n  sequence_exhausted: 'No response after full sequence',\n  duplicate_merged: 'Merged into an existing opportunity',\n};\n\n// ---------------------------------------------------------------------------\n// 10. Follow-up cadence\n// ---------------------------------------------------------------------------\n// Three steps with three genuinely different conditions: a relative-hours\n// delay, a relative-days delay, and a score-conditional step.\n\nconst CADENCE = {\n  qualified: [\n    { step: 1, delay_s: 3600, template: 'q_fu1', condition: 'always' },\n    { step: 2, delay_s: 86400, template: 'q_fu2', condition: 'always' },\n    { step: 3, delay_s: 259200, template: 'q_fu3', condition: 'score>=85' },\n  ],\n  nurture: [\n    { step: 1, delay_s: 172800, template: 'n_fu1', condition: 'always' },\n    { step: 2, delay_s: 604800, template: 'n_fu2', condition: 'always' },\n    { step: 3, delay_s: 1814400, template: 'n_fu3', condition: 'always' },\n  ],\n};\n\nconst SLA_SECONDS = 1800; // 30 minutes, per the brief's SLA Breach rule\n\n// Any of these cancels every pending job for the lead, immediately.\nconst STOP_REASONS = ['replied', 'booked', 'opted_out', 'closed', 'merged'];\n\n// ---------------------------------------------------------------------------\n// 11. Retry policy\n// ---------------------------------------------------------------------------\n// Capped at 8s, not 60s: the gateway is called with waitForSubWorkflow, so a\n// long backoff holds the caller open and can blow a webhook response window.\n// Bounded by tries AND by total elapsed, so no path can loop forever.\n\nconst RETRY = {\n  MAX_TRIES: 3,\n  BASE_MS: 500,\n  CAP_MS: 8000,\n  JITTER: 0.25,\n  RETRYABLE_STATUS: [408, 425, 429, 500, 502, 503, 504],\n  // Anything else is permanent and goes straight to the dead-letter queue.\n};\n\n/**\n * Exponential backoff with jitter, clamped LAST.\n *\n * The obvious ordering - cap, then jitter - is wrong: +/-25% applied after the\n * cap returns up to 10s from an \"8s cap\", so the cap is not a cap. A flaky\n * unit test caught this, which is the only reason it is not in the shipped\n * workflows.\n */\nfunction backoffMs(attempt) {\n  const raw = RETRY.BASE_MS * Math.pow(2, Math.max(0, attempt - 1));\n  const jittered = raw * (1 - RETRY.JITTER + Math.random() * RETRY.JITTER * 2);\n  return Math.max(RETRY.BASE_MS, Math.min(RETRY.CAP_MS, Math.round(jittered)));\n}\n\n// ---------------------------------------------------------------------------\n// 12. Data tables\n// ---------------------------------------------------------------------------\n// Seven tables, created by LP-00. Data Table columns are string | number |\n// boolean | date, and the schema is IMMUTABLE through the public API, so a\n// missed column means dropping and recreating the table. They are listed here\n// in full for that reason.\n//\n// Timestamps are stored as epoch SECONDS in number columns. Numeric\n// comparison is unambiguous in the Data Table filter operators, which is what\n// the tick's `due_at <= now` claim depends on.\n\nconst TABLES = {\n  lead: ['lead_uid', 'source', 'source_ref', 'received_at', 'full_name', 'email_raw', 'email_norm',\n    'phone_raw', 'phone_e164', 'phone_key', 'country', 'company', 'domain', 'service_interest',\n    'free_text', 'consent', 'consent_source', 'score', 'score_breakdown_json', 'band',\n    'ai_status', 'ai_intent', 'ai_urgency', 'ai_signals', 'ai_reason', 'ai_confidence',\n    'owner_id', 'assign_rung', 'odoo_lead_id', 'odoo_stage', 'approval_state', 'approval_by',\n    'status', 'merged_into', 'raw_json', 'updated_at'],\n  idem: ['idem_key', 'scope', 'lead_uid', 'state', 'result_ref', 'claimed_at', 'completed_at', 'attempts'],\n  person_index: ['person_key', 'lead_uid', 'email_norm', 'phone_key', 'created_at'],\n  jobs: ['job_id', 'lead_uid', 'job_type', 'step', 'template', 'due_at', 'state', 'attempts',\n    'claimed_at', 'result', 'cancel_reason'],\n  agents: ['agent_id', 'name', 'email', 'services', 'capacity', 'open_leads', 'available', 'odoo_user_id'],\n  audit: ['event_id', 'lead_uid', 'ts', 'workflow', 'execution_id', 'type', 'decision', 'detail_json'],\n  dlq: ['dlq_id', 'lead_uid', 'stage_failed', 'error_class', 'error', 'payload_json', 'attempts',\n    'state', 'first_seen', 'last_seen'],\n};\n\n// The audit log is the audit trail. n8n's own execution log is not: it is\n// pruned (14 days by default) and it is not queryable by lead.\nconst AUDIT_TYPES = [\n  'intake_received', 'intake_duplicate_event', 'validation_failed', 'duplicate_decision',\n  'enrichment', 'scored', 'ai_classified', 'ai_fallback', 'conflict_detected', 'banded',\n  'assigned', 'odoo_upserted', 'stage_changed', 'message_sent', 'message_suppressed',\n  'job_scheduled', 'job_cancelled', 'sla_breached', 'approval_requested', 'approval_decided',\n  'error', 'replayed',\n];\n\n// `C` is the namespace the inlined copy uses inside n8n Code nodes. The build\n// step concatenates this file into each node that needs it and strips the\n// `require` from scorer.js, so `C` is already in scope there. Guarding the\n// CommonJS export keeps the same file loadable by the test runner.\nconst C = {\n  LEAD_SCHEMA, CRITICAL_FIELDS, DIAL_PREFIXES, FREE_EMAIL_DOMAINS, DISPOSABLE_EMAIL_DOMAINS,\n  phoneKey, toE164, countryFromE164, normEmail, EMAIL_RE, domainOf,\n  IDEM_SCOPES, intakeIdemKey, personKeyOf, stableHash, canonicalJson, leadUidFrom, DUP, dupConfidence,\n  SCORE, TARGET_INDUSTRIES, ADJACENT_INDUSTRIES, EXCLUDED_INDUSTRIES, CORE_MARKETS,\n  ADJACENT_MARKETS, HIGH_VALUE_SERVICES, MID_VALUE_SERVICES, DISQUALIFY_PATTERNS,\n  BANDS, bandFor, BAND_ORDINAL, AI_SCHEMA, AI_IMPLIED_BAND, CONFLICT, materiallyConflicts,\n  ASSIGN_RUNGS, pickOwner, STAGES, STAGES_TO_CREATE, STAGE_TRANSITIONS, LOST_REASONS,\n  CADENCE, SLA_SECONDS, STOP_REASONS, RETRY, backoffMs, TABLES, AUDIT_TYPES,\n};\n\nif (typeof module !== 'undefined' && module.exports) module.exports = C;\n\n/**\n * Deterministic lead scoring. This is the exact body inlined into the\n * `Score Lead` Code node in LP-02, kept here so it can be unit-tested outside\n * n8n (see scripts/test-scoring.mjs).\n *\n * Two rules govern everything below:\n *   1. The AI contributes zero points. Delete the AI layer and this still runs.\n *   2. Every factor emits a breakdown line. A score you cannot explain line by\n *      line is a score you cannot defend when a salesperson disputes it.\n */\n\n\nfunction bucketSize(size) {\n  const n = Number(size);\n  if (!Number.isFinite(n) || n <= 0) return 'unknown';\n  if (n >= 201) return '201+';\n  if (n >= 51) return '51-200';\n  if (n >= 11) return '11-50';\n  return '1-10';\n}\n\nfunction bucketIndustry(industry) {\n  const s = String(industry || '').trim().toLowerCase();\n  if (!s) return 'unknown';\n  if (C.EXCLUDED_INDUSTRIES.some((x) => s.includes(x))) return 'excluded';\n  if (C.TARGET_INDUSTRIES.some((x) => s.includes(x))) return 'target';\n  if (C.ADJACENT_INDUSTRIES.some((x) => s.includes(x))) return 'adjacent';\n  return 'unknown';\n}\n\nfunction bucketMarket(country) {\n  const c = String(country || '').toUpperCase();\n  if (!c) return 'unknown';\n  if (C.CORE_MARKETS.includes(c)) return 'core';\n  if (C.ADJACENT_MARKETS.includes(c)) return 'adjacent';\n  return 'other';\n}\n\nfunction bucketService(service) {\n  const s = String(service || '').trim().toLowerCase().replace(/[\\s-]+/g, '_');\n  if (!s) return 'unknown';\n  if (C.HIGH_VALUE_SERVICES.includes(s)) return 'high';\n  if (C.MID_VALUE_SERVICES.includes(s)) return 'mid';\n  return 'low';\n}\n\nfunction bucketBudget(budget) {\n  const n = Number(String(budget || '').replace(/[^\\d.]/g, ''));\n  if (!Number.isFinite(n) || n <= 0) return 'unknown';\n  if (n >= 5000) return 'high';\n  if (n >= 1000) return 'mid';\n  return 'unknown';\n}\n\n/**\n * @param {object} lead      canonical lead\n * @param {object} enrich    {company_size, industry, country, strategic} or {} when unavailable\n * @returns {{score, band, strategic, disqualified, breakdown}}\n */\nfunction scoreLead(lead, enrich = {}) {\n  const breakdown = [];\n  let total = 0;\n  const add = (factor, value, points, note) => {\n    total += points;\n    breakdown.push({ factor, value, points, note: note || '' });\n  };\n\n  // Enrichment fills gaps; it never overrides something the lead stated.\n  const country = lead.country || enrich.country || '';\n  const industryBucket = bucketIndustry(enrich.industry);\n\n  // Hard disqualifier: an out-of-scope vertical is worth zero regardless of\n  // every other signal, so it short-circuits before any points are awarded.\n  if (industryBucket === 'excluded') {\n    return {\n      score: 0,\n      band: 'unqualified',\n      strategic: false,\n      disqualified: true,\n      disqualify_reason: `excluded industry: ${enrich.industry}`,\n      breakdown: [{ factor: 'industry', value: enrich.industry, points: 0, note: 'excluded vertical, hard disqualify' }],\n    };\n  }\n\n  const freeText = `${lead.free_text || ''} ${lead.service_interest || ''}`;\n  if (C.DISQUALIFY_PATTERNS.test(freeText)) {\n    add('intent_penalty', 'job/competitor/solicitation language',\n      C.SCORE.penalty.competitor_or_jobseeker, 'matched the disqualify pattern');\n  }\n\n  const sizeB = bucketSize(enrich.company_size);\n  add('company_size', sizeB, C.SCORE.company_size[sizeB],\n    sizeB === 'unknown' ? 'not enriched, scored at the unknown band rather than zero' : '');\n\n  add('industry', industryBucket, C.SCORE.industry[industryBucket],\n    industryBucket === 'unknown' ? 'not enriched, scored at the unknown band rather than zero' : '');\n\n  const marketB = bucketMarket(country);\n  add('market', marketB, C.SCORE.market[marketB],\n    lead.country ? '' : (country ? 'derived from the E.164 prefix' : 'no country signal'));\n\n  const serviceB = bucketService(lead.service_interest);\n  add('service', serviceB, C.SCORE.service[serviceB]);\n\n  const urgency = String(lead.stated_urgency || 'unknown');\n  add('urgency', urgency, C.SCORE.urgency[urgency] ?? C.SCORE.urgency.unknown);\n\n  const hasEmail = !!lead.email_norm && C.EMAIL_RE.test(lead.email_norm);\n  const hasPhone = !!lead.phone_key && lead.phone_key.length >= 10;\n  const completeness = hasEmail && hasPhone ? 'both' : 'one';\n  add('completeness', completeness, C.SCORE.completeness[completeness]);\n\n  const src = String(lead.source || '').toLowerCase();\n  add('source', src, C.SCORE.source[src] ?? 0);\n\n  const budgetB = bucketBudget(lead.stated_budget);\n  add('budget', budgetB, C.SCORE.budget[budgetB]);\n\n  const emailDomain = String(lead.email_norm || '').split('@')[1] || '';\n  if (C.DISPOSABLE_EMAIL_DOMAINS.has(emailDomain)) {\n    add('disposable_email', emailDomain, C.SCORE.penalty.disposable_email, 'throwaway inbox');\n  }\n\n  const raw = total;\n  const score = Math.max(0, Math.min(C.SCORE.MAX, raw));\n  if (raw !== score) breakdown.push({ factor: 'clamp', value: `${raw} -> ${score}`, points: 0, note: 'clamped to 0..100' });\n\n  const strategic = String(enrich.strategic) === 'true' || enrich.strategic === true;\n  if (strategic) breakdown.push({ factor: 'strategic_account', value: true, points: 0, note: 'forces the VIP band regardless of score' });\n\n  return { score, band: C.bandFor(score, strategic), strategic, disqualified: false, breakdown };\n}\n\nif (typeof module !== 'undefined' && module.exports) {\n  module.exports = { scoreLead, bucketSize, bucketIndustry, bucketMarket, bucketService, bucketBudget };\n}\n\n// ===== END shared runtime =====\nconst d = $('Decide Behaviour').first().json;\nconst b = d.body || {};\n\n// The enrichment \"provider\". A lookup table is exactly what the brief allows,\n// and it is honest: this is reference data, not a live vendor.\nconst DIRECTORY = {\n  'acme-logistics.com': { company_size: 420, industry: 'logistics',             country: 'EG', strategic: true  },\n  'nilecargo.com':      { company_size: 180, industry: 'logistics',             country: 'EG', strategic: false },\n  'deltaclinics.com':   { company_size: 95,  industry: 'healthcare',            country: 'EG', strategic: false },\n  'gulftech.ae':        { company_size: 600, industry: 'technology',            country: 'AE', strategic: true  },\n  'smallshop.com':      { company_size: 8,   industry: 'retail',                country: 'EG', strategic: false },\n  'brightlearn.com':    { company_size: 60,  industry: 'education',             country: 'SA', strategic: false },\n  'apexrealty.com':     { company_size: 140, industry: 'real estate',           country: 'AE', strategic: false },\n  'northstarco.com':    { company_size: 25,  industry: 'professional services', country: 'GB', strategic: false },\n  'luckyspin.com':      { company_size: 300, industry: 'gambling',              country: 'MT', strategic: false },\n};\n\nif (d.service === 'enrich') {\n  const domain = String(b.domain || '').toLowerCase();\n  const hit = DIRECTORY[domain];\n  // A miss is a legitimate answer, not an error. Most WhatsApp leads have no\n  // domain at all, and the scorer is built to price \"unknown\" rather than\n  // treat it as zero.\n  return [{ json: { status: 200, payload: hit\n    ? { found: true, domain, ...hit, source: 'mock-directory' }\n    : { found: false, domain, source: 'mock-directory' } } }];\n}\n\nif (d.service === 'whatsapp') {\n  // Shaped like the real WhatsApp Business Cloud API response, so swapping the\n  // mock for Meta is a URL and a credential, not a code change.\n  const wamid = 'wamid.MOCK' + Math.random().toString(36).slice(2, 12).toUpperCase();\n  return [{ json: { status: 200, payload: {\n    messaging_product: 'whatsapp',\n    contacts: [{ input: b.to || '', wa_id: String(b.to || '').replace(/\\D/g, '') }],\n    messages: [{ id: wamid, message_status: 'accepted' }],\n  } }}];\n}\n\n// booking\nreturn [{ json: { status: 200, payload: {\n  booking_id: b.booking_id || ('bk_' + Math.random().toString(36).slice(2, 10)),\n  lead_uid: b.lead_uid || '', slot: b.slot || '', status: 'confirmed',\n} }}];\n"
+      }
+    },
+    {
+      "id": "4899780d-ca78-4371-88d9-5f08b36074d4",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1020,
+        -200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "422c9374-4131-4c23-8a45-ca7c6ce6f7ec",
+      "name": "Hang Past Timeout",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        780,
+        -10
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 35,
+        "unit": "seconds"
+      },
+      "notes": "The caller times out at 25s, so 35s here reproduces a timeout without needing\nanything to actually be broken. Deliberately longer than the gateway timeout\nand shorter than the workflow one, so the execution still finishes and stays\nvisible in the log."
+    },
+    {
+      "id": "dbd15ed8-2fbe-46e1-86a0-433f63af2491",
+      "name": "Respond After Hang",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1020,
+        -10
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, late: true }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "63b9a43f-ee21-4079-8031-103c9a8dbc5a",
+      "name": "Respond 429",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        780,
+        180
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: \"rate_limited\", message: \"Too many requests\" }) }}",
+        "options": {
+          "responseCode": 429,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Retry-After",
+                "value": "2"
+              }
+            ]
+          }
+        }
+      },
+      "notes": "Sends a real Retry-After. The gateway prefers that header over its own\nbackoff curve, and this is the only place that behaviour can be exercised:\nOdoo itself imposes no rate limit here, so the 429 has to be injected."
+    },
+    {
+      "id": "1d7872c9-0a54-49a4-8914-1e22e3492893",
+      "name": "Respond Malformed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        780,
+        370
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Service temporarily degraded, please retry shortly.",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "notes": "HTTP 200, Content-Type says JSON, body is prose. This is the shape that breaks\nnaive integrations: the status says success, so anything keying off the status\ncode alone records a success and moves on with undefined fields."
+    },
+    {
+      "id": "4a98db50-901d-47df-8bda-f59929f7ad43",
+      "name": "Respond 500",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        780,
+        560
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: \"internal\", message: \"Simulated upstream failure\" }) }}",
+        "options": {
+          "responseCode": 500
+        }
+      }
+    },
+    {
+      "id": "fec68a8a-8450-4035-8af2-7952fb0f157f",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        780,
+        750
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: \"unauthorized\", message: \"Simulated bad or expired credential\" }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "notes": "Exists to prove a negative: 401 is classified permanent, so the caller must\nNOT burn three attempts on it. A dead credential retried on a backoff curve is\nhow a five-minute outage becomes a thirty-minute one."
+    },
+    {
+      "id": "41c807bc-5c68-40b6-827a-ad448be9fefb",
+      "name": "Respond Unhandled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        780,
+        940
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: \"unknown_chaos\", requested: $('Decide Behaviour').first().json.fail }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "4876853d-88bc-42e0-84ac-b929645d31c5",
+      "name": "note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -900,
+        -520
+      ],
+      "parameters": {
+        "content": "## LP-99 Mock Services\n\nStands in for the enrichment provider, WhatsApp Cloud API and the booking system.\n\n**Its real job is failing on demand**, because that is what the 14 edge cases need:\n\n```\n?fail=timeout&times=2   times out twice, then succeeds   (EC-3)\n?fail=429&times=1       one rate limit, then succeeds    (EC-6)\n?fail=malformed         200 OK with prose, not JSON      (EC-4)\n?fail=500 | auth        server error / dead credential\n?reset=1                clears the counter for that key\n```\n\nThe counter is stored, so \"twice then succeeds\" is genuinely reproducible rather than a claim. The WhatsApp response is shaped exactly like Meta's, so going live is a URL and a credential.",
+        "width": 720,
+        "height": 300
+      }
+    }
+  ],
+  "connections": {
+    "enrich Endpoint": {
+      "main": [
+        [
+          {
+            "node": "tag enrich",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "whatsapp Endpoint": {
+      "main": [
+        [
+          {
+            "node": "tag whatsapp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "booking Endpoint": {
+      "main": [
+        [
+          {
+            "node": "tag booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tag enrich": {
+      "main": [
+        [
+          {
+            "node": "Read Chaos Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tag whatsapp": {
+      "main": [
+        [
+          {
+            "node": "Read Chaos Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tag booking": {
+      "main": [
+        [
+          {
+            "node": "Read Chaos Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Chaos Plan": {
+      "main": [
+        [
+          {
+            "node": "Read Counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Counter": {
+      "main": [
+        [
+          {
+            "node": "Decide Behaviour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Behaviour": {
+      "main": [
+        [
+          {
+            "node": "Save Counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Counter": {
+      "main": [
+        [
+          {
+            "node": "Route Behaviour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Behaviour": {
+      "main": [
+        [
+          {
+            "node": "Serve Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Hang Past Timeout",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 429",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Malformed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 500",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unhandled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Serve Data": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hang Past Timeout": {
+      "main": [
+        [
+          {
+            "node": "Respond After Hang",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Cairo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}
