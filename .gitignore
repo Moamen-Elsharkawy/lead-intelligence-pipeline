@@ -1,0 +1,4 @@
+.n8n-ids.json
+node_modules/
+*.log
+.env

@@ -1,0 +1,18 @@
+{
+  "generated_by": "scripts/build-workflows.js",
+  "workflows": [
+    {
+      "file": "LP-00-setup-and-seed.json",
+      "name": "LP-00 Setup and Seed",
+      "nodes": 26,
+      "purpose": "One-click provisioning: Odoo connection, external-ref field, funnel stages, seed agents."
+    },
+    {
+      "file": "LP-90-odoo-gateway.json",
+      "name": "LP-90 Odoo Gateway",
+      "nodes": 10,
+      "purpose": "Single egress point for Odoo. Auth, retry with bounded backoff, and the 200-on-error trap."
+    }
+  ],
+  "total_nodes": 36
+}
