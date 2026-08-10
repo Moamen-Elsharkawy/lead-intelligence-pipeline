@@ -1,0 +1,38 @@
+{
+  "_comment": "The real WhatsApp Business Cloud API webhook envelope, unedited in shape. The wamid in messages[0].id is globally unique and stable across Meta's own retries, which makes it the cleanest idempotency key of the three sources.",
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "201234567890",
+              "phone_number_id": "106540352242922"
+            },
+            "contacts": [
+              {
+                "profile": { "name": "Karim Adel" },
+                "wa_id": "201001234567"
+              }
+            ],
+            "messages": [
+              {
+                "from": "201001234567",
+                "id": "wamid.HBgMMjAxMDAxMjM0NTY3FQIAEhggQTFCMkMzRDRFNUY2RzdIOEk5SjBLMUwyTTNONE81UA==",
+                "timestamp": "1754870400",
+                "type": "text",
+                "text": {
+                  "body": "Hi, we run a logistics company and need an automation for our dispatch process urgently. Budget is around $12,000."
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

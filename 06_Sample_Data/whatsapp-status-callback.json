@@ -1,0 +1,29 @@
+{
+  "_comment": "Meta sends far more of these than it sends messages. They are delivery and read receipts, not leads. The intake acknowledges them with 200 and creates nothing - answering with an error would make Meta re-deliver the receipt for up to seven days.",
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "201234567890",
+              "phone_number_id": "106540352242922"
+            },
+            "statuses": [
+              {
+                "id": "wamid.HBgMMjAxMDAxMjM0NTY3FQIAERgSMEE5RkY4RkY4RkY4RkY4RkYA",
+                "status": "delivered",
+                "timestamp": "1754870460",
+                "recipient_id": "201001234567"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -70,13 +70,17 @@ if (!lead.lead_uid) throw new Error('LP-03: the verdict carries no lead_uid.');
 // array with prefix-notation operators: N clauses need N-1 leading '|'. Getting
 // that count wrong does not error, it silently ANDs - and an AND of email and
 // phone finds almost nothing, so the dedupe would appear to work and never fire.
+//
+// crm.lead has NO mobile field on this Odoo (saas~19.3) - it was folded into
+// phone in a recent version. Searching it returns "Invalid field
+// crm.lead.mobile in condition", which the gateway classifies as permanent and
+// this workflow turns into a refusal to create the lead. Every field used here
+// was then checked against ir.model.fields on the live database rather than
+// assumed; see 05_Test_Evidence/odoo-api-probe.md.
 const clauses = [];
 clauses.push(['x_lp_lead_id', '=', lead.lead_uid]);
 if (lead.email_norm) clauses.push(['email_from', '=ilike', lead.email_norm]);
-if (lead.phone_key) {
-  clauses.push(['phone', 'like', lead.phone_key]);
-  clauses.push(['mobile', 'like', lead.phone_key]);
-}
+if (lead.phone_key) clauses.push(['phone', 'like', lead.phone_key]);
 const domain = [...Array(clauses.length - 1).fill('|'), ...clauses];
 
 return [{ json: {
@@ -91,7 +95,7 @@ return [{ json: {
   },
   dup_args_json: JSON.stringify([domain]),
   dup_kwargs_json: JSON.stringify({
-    fields: ['id', 'name', 'email_from', 'phone', 'mobile', 'partner_name', 'contact_name',
+    fields: ['id', 'name', 'email_from', 'phone', 'partner_name', 'contact_name',
       'stage_id', 'x_lp_lead_id', 'active', 'user_id', 'create_date'],
     limit: 20,
     // active_test:false is injected by LP-90 for every search, so a lost
@@ -185,7 +189,7 @@ const others = found.filter(r => String(r.x_lp_lead_id || '') !== lead.lead_uid)
 let best = null;
 for (const r of others) {
   const cand = {
-    phone_key: C.phoneKey(r.phone || r.mobile || ''),
+    phone_key: C.phoneKey(r.phone || ''),
     email_norm: C.normEmail(r.email_from || ''),
     full_name: r.contact_name || r.name || '',
     company: r.partner_name || '',
@@ -237,6 +241,19 @@ return [{ json: {
   dup_reason,
   dup_target_id: target_id,
   dup_candidates: found.length,
+  // Carried so the write can fill blanks without overwriting what is already
+  // there. Odoo returns boolean false for an empty char field, not an empty
+  // string, so the blank test downstream cannot be a plain string check.
+  dup_existing: (self || best?.row)
+    ? {
+        id: Number((self || best.row).id),
+        email_from: (self || best.row).email_from,
+        phone: (self || best.row).phone,
+        partner_name: (self || best.row).partner_name,
+        contact_name: (self || best.row).contact_name,
+        active: (self || best.row).active,
+      }
+    : null,
   merged_into: dup_action === 'merge_into' ? String(best.row.x_lp_lead_id || ('odoo:' + best.row.id)) : '',
   upsert_key: 'odoo_upsert:' + lead.lead_uid,
 } }];
@@ -465,7 +482,34 @@ if (ctx.close) {
   values.probability = 0;
 }
 
-const args = method === 'create' ? [[values]] : [[target_id], values];
+// --- a merge ENRICHES the survivor, it does not overwrite it -------------
+// The full payload above describes THIS enquiry. Writing it onto an existing
+// opportunity for the same person is destructive, and the first live run
+// proved it: a WhatsApp follow-up merged into a website lead blanked the
+// opportunity's email (WhatsApp has none) and, far worse, replaced its
+// x_lp_lead_id with the second lead's - destroying the original's idempotency
+// anchor, so a later replay of the first lead would no longer find it and
+// would create the duplicate this whole path exists to prevent.
+//
+// So a merge writes only into fields that are currently empty, and never
+// touches the external key, the stage, the owner or the description. The new
+// enquiry is recorded as a chatter note instead, where it reads as history
+// rather than as a silent overwrite.
+let payload = values;
+if (ctx.dup_action === 'merge_into') {
+  const ex = ctx.dup_existing || {};
+  const blank = (v) => v === false || v === null || v === undefined || String(v).trim() === '';
+  payload = {};
+  if (blank(ex.email_from) && (lead.email_raw || lead.email_norm)) payload.email_from = lead.email_raw || lead.email_norm;
+  if (blank(ex.phone) && lead.phone_e164) payload.phone = lead.phone_e164;
+  if (blank(ex.partner_name) && lead.company) payload.partner_name = lead.company;
+  if (blank(ex.contact_name) && lead.full_name) payload.contact_name = lead.full_name;
+  // An empty write is legal here - measured, crm.lead write([id], {}) returns
+  // true - and it keeps the flow uniform: every path still produces a gateway
+  // call whose result confirms the opportunity id.
+}
+
+const args = method === 'create' ? [[payload]] : [[target_id], payload];
 
 return [{ json: {
   ...ctx,

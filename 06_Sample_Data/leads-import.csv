@@ -1,0 +1,8 @@
+Name,Email,Phone,Company,Country,Service,Notes,Consent
+Youssef Amin,youssef@gulftech.ae,+971 50 123 4567,GulfTech,United Arab Emirates,AI agent,"We want a chatbot for support, and we need it before the end of the quarter. Budget approved at $20,000.",yes
+"Hassan, Karim",karim@nilecargo.com,01112223344,Nile Cargo,Egypt,Integration,"He said ""call me Friday"" - wants the ERP and the website talking to each other.",yes
+Broken Row Here,only-three,cells
+Sara Fouad,sara@deltaclinics.com,01234567890,Delta Clinics,Egypt,Automation,Wants a booking bot for the clinic reception. Exploring options for now.,yes
+Omar Said,omar@smallshop.com,01055555555,Small Shop,Egypt,Training,Asking about a workshop for the team.,yes
+No Contact Person,,,Ghost Industries,Egypt,Consulting,No email and no phone on this row - nothing to contact.,yes
+Layla Mansour,layla@luckyspin.com,+20 106 777 8888,Lucky Spin Gaming,Egypt,Automation,Wants player retention automation across their betting platform.,yes

@@ -1,0 +1,20 @@
+{
+  "instance": "https://moamen.dsoqi.online",
+  "run_id": "98236904",
+  "results": [
+    {
+      "n": 1,
+      "title": "Same person from two sources within 2 minutes -> one opportunity, second merged",
+      "status": "PASS",
+      "detail": "two deliveries (LP-20260810-36C23968, LP-20260810-59B55453), one Odoo opportunity #45; second marked merged into LP-20260810-CF4A3F68, opp count for it = 0",
+      "secs": 13
+    },
+    {
+      "n": 2,
+      "title": "Phone formatted differently in each source -> recognised as one person",
+      "status": "PASS",
+      "detail": "\"+20 100 555 0202\" and \"00201005550202\" both -> phone_key 1005550202; second merged into opportunity #46",
+      "secs": 6
+    }
+  ]
+}

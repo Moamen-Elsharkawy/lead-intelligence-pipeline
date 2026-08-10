@@ -205,6 +205,27 @@ if (!specs.length) {
   process.exit(1);
 }
 
+// Node-code bodies are written as template literals in the specs, so a stray
+// backtick inside one - almost always in a comment quoting `a field name` -
+// closes the literal early and the whole spec fails to parse. Node reports it
+// as "Unexpected identifier" pointing at a comment, which reads like nonsense.
+// This turns three minutes of confusion into one line naming the file and the
+// text. It cost that three minutes twice before it was worth writing.
+for (const file of specs) {
+  const raw = fs.readFileSync(path.join(SRC, file), 'utf8');
+  for (const [i, line] of raw.split('\n').entries()) {
+    // An escaped backtick is fine; only a bare one closes the literal.
+    if (/^\s*\/\//.test(line) && /`/.test(line.replace(/\\`/g, ''))) {
+      console.error(
+        `${file}:${i + 1} has a backtick inside a comment:\n    ${line.trim()}\n` +
+        `  Node code lives in a template literal, so this closes it early. ` +
+        `Rephrase without the backtick, or escape it.`,
+      );
+      process.exit(1);
+    }
+  }
+}
+
 let nodeTotal = 0;
 const manifest = [];
 for (const file of specs) {

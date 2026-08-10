@@ -1,0 +1,16 @@
+{
+  "_comment": "A landing-page form submission. submission_id is the idempotency anchor: a retried POST carries the same one, a second genuine submission does not.",
+  "submission_id": "sub_9f2a11",
+  "form_id": "contact-2026",
+  "name": "Nadia Hassan",
+  "email": "nadia@acme-logistics.com",
+  "phone": "+20 100 123 4567",
+  "company": "Acme Logistics",
+  "country": "EG",
+  "service": "Workflow automation",
+  "message": "We move around 400 shipments a day and the dispatch team re-types every order into three different systems. We need this fixed, budget is around $15,000 and we want to start immediately.",
+  "budget": "15000 USD",
+  "timeline": "immediate",
+  "consent": true,
+  "utm_source": "linkedin"
+}
