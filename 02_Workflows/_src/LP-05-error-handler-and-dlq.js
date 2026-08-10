@@ -639,6 +639,12 @@ return [{ json: {
         },
         options: {},
       },
+      notes: 'The false branch is deliberately empty, and n8n\'s validator will warn about that.\n\n'
+        + 'Every non-requalify action is a refusal - bad_request, not_found, already_handled,\n'
+        + 'no_lead_record - and a refusal must NOT mark the dead letter replayed. The caller\n'
+        + 'already has its answer from the response branch, which runs in parallel. So both\n'
+        + 'nodes hanging off the true branch is the intent: re-dispatch AND record, together\n'
+        + 'or not at all.',
     },
 
     {

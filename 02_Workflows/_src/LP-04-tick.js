@@ -622,6 +622,15 @@ const out = [];
 
 for (const lead of orphans) {
   const pick = C.pickOwner(working, lead.service_interest, 'mgr-01');
+
+  // Nothing to do if the picker lands back on the owner it is trying to move
+  // away from. That happens when the whole team is at capacity and the lead is
+  // already sitting on the fallback owner, and writing "mgr-01 -> mgr-01" into
+  // the audit log is not a reassignment - it is noise that makes a stuck lead
+  // look like a handled one. The alert for "nobody has capacity" is already
+  // raised at rung 3 when the lead is first assigned.
+  if (String(pick.agent_id) === String(lead.owner_id)) continue;
+
   const target = working.find(a => a.agent_id === pick.agent_id);
   if (target) target.open_leads += 1;
 

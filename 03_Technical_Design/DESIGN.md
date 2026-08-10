@@ -8,7 +8,7 @@ the *what* is in the workflow JSON and it is heavily commented.
 | Stack | n8n 2.69.0 self-hosted, Odoo saas~19.3 (external API over JSON-RPC), OpenRouter |
 | State | eight n8n Data Tables (`lp_*`) |
 | Size | 11 workflows, 212 nodes, 138 unit tests, 15 live edge-case tests |
-| Running cost | ~$0.09 per 1,000 classified leads. Everything else is free |
+| Running cost | ~$0.07 per 1,000 classified leads (calculated, see §5). Everything else is free |
 
 **Contents.** [1 Assumptions](#1-assumptions) · [2 Architecture](#2-architecture-overview) ·
 [3 Workflows](#3-workflow-breakdown) · [4 Data schema](#4-data-schema) ·
@@ -264,6 +264,14 @@ reporting exactly what it skipped. `override_json` is how a corrupted CSV row is
 `reply | opt_out | booking | close | sales_action`, plus the VIP approve/reject decision. One effect
 table maps event → cancellations, stage move, Odoo write, notification. Booking is claimed by
 `booking:<booking_id>`, so a webhook delivered twice books once and answers `duplicate: true`.
+
+**This is the one endpoint whose response comes after a write rather than before it.** Intake
+answers 202 up front on purpose, because a webhook that waits for the pipeline is a webhook that
+times out. An opt-out is the opposite case: if the 200 only means *accepted*, then anything acting
+on it immediately - a tick, a retry, an operator - can still observe consent as granted, and a
+follow-up escapes. So `Apply To Lead` runs first and the response follows it. Only that one write is
+in front; job cancellation and the Odoo update stay behind the response, because `consent = denied`
+on the lead row is already the first stop condition LP-92 checks.
 
 ### LP-07 Ops Report — 13 nodes, daily 08:00 + `POST /webhook/lp-ops`
 
@@ -685,6 +693,11 @@ usable on a phone.
 
 Worth stating, because it is the argument for testing at this layer at all:
 
+- **An opt-out was acknowledged before it was applied.** LP-06 answered `200` from a branch running
+  parallel to its writes, so the response meant *accepted*, not *applied* - and a tick firing inside
+  that few-hundred-millisecond gap read the lead as still consenting and sent the follow-up. In a
+  system whose entire premise is that this cannot happen. It survived several green runs because the
+  window only opens when the instance is under load. The lead write is now in front of the response.
 - A **merge was overwriting the survivor's external key**, which would have made a later replay
   create the exact duplicate the merge existed to prevent. Found by reading Odoo, not by an
   execution status.

@@ -77,8 +77,19 @@ a column), so `--recreate` is the only way to change one, and it destroys the ro
 curl -X POST https://<your-n8n>/webhook/lp-setup \
      -H "X-LP-Token: $LP_WEBHOOK_TOKEN" \
      -H 'Content-Type: application/json' \
-     -d '{"mode":"demo"}'
+     -d '{"mode":"demo","manager_email":"you@example.com"}'
 ```
+
+**`manager_email` is required and has no default.** It receives VIP approval requests,
+unassignable-lead alerts and SLA escalations, and setup refuses to run without a real address -
+because this repository is public, and an address baked into the committed file means a stranger
+running setup quietly starts mailing someone who never agreed to receive it. Pass it in the body as
+above, or set it once in LP-00's `Config` node.
+
+**`base_url` needs nothing when you call the webhook.** Setup reads it from the request - the host
+that just called you is the host you are - and writes it to `lp_config`, where every other workflow
+picks it up to reach the mock services. It is only worth filling in the Config node if you run setup
+from the **manual trigger**, which has no request to read, and setup will stop and say so.
 
 Three modes, set in LP-00's `Config` node or overridden in the request body:
 

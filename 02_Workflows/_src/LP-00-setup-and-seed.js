@@ -59,8 +59,21 @@ const CONFIG = {
   odoo_user: '',
   odoo_password: '',
 
-  base_url: 'https://moamen.dsoqi.online',
-  manager_email: 'mosharkawyy@gmail.com',
+  // This instance's own public URL. Leave it empty when setup is run over the
+  // webhook and it is taken from the request - the host that just called you is
+  // the host you are. Fill it in only for the manual trigger, which has no
+  // request to read. Empty by default because a real hostname committed to a
+  // public repo is both a leak and a footgun: anyone cloning this and forgetting
+  // to set it would be firing at someone else's n8n.
+  base_url: '',
+
+  // Where VIP approval requests, unassignable-lead alerts and SLA escalations
+  // go. Deliberately a placeholder in the committed file: this repository is
+  // public, and a real address baked in here means a stranger running setup
+  // quietly starts mailing someone who never agreed to receive it. Set it
+  // below, or pass it in the webhook body.
+  manager_email: 'PUT_YOUR_MANAGER_EMAIL_HERE',
+
   fallback_owner_id: 'mgr-01',
 };
 
@@ -78,9 +91,37 @@ const AGENTS = [
 // The webhook body may override the mode, so the test harness can run
 // {"mode":"keep"} to re-verify an existing environment without provisioning a
 // new sandbox. The manual trigger emits {} and simply leaves CONFIG.mode alone.
+// manager_email may be overridden the same way, which is how the committed
+// file stays free of anyone's real address.
 const inbound = $input.first()?.json || {};
 const requested = String(inbound.body?.mode || '').trim();
 const mode = requested || CONFIG.mode;
+
+const managerEmail = String(inbound.body?.manager_email || CONFIG.manager_email || '').trim();
+if (!/^[^\\s@]+@[^\\s@.]+\\.[^\\s@]{2,}$/.test(managerEmail) || /^PUT_/.test(managerEmail)) {
+  throw new Error('Setup: manager_email is "' + managerEmail + '". ' +
+    'Set it in the Config node, or POST {"manager_email":"you@example.com"} to /webhook/lp-setup. ' +
+    'It receives VIP approvals, unassignable-lead alerts and SLA escalations, so setup will not ' +
+    'run without a real address to send them to.');
+}
+CONFIG.manager_email = managerEmail;
+AGENTS[AGENTS.length - 1].email = managerEmail;
+
+// The instance's own URL, in order of preference: the request body, the Config
+// node, then the request itself. Every workflow reads this from lp_config to
+// reach the mock services, so it has to be right and it has to be absolute.
+const hdr = inbound.headers || {};
+const fromRequest = hdr.host
+  ? (String(hdr['x-forwarded-proto'] || 'https').split(',')[0].trim() + '://' + String(hdr['x-forwarded-host'] || hdr.host).split(',')[0].trim())
+  : '';
+const baseUrl = String(inbound.body?.base_url || CONFIG.base_url || fromRequest || '').replace(/\\/+$/, '');
+if (!/^https?:\\/\\//.test(baseUrl)) {
+  throw new Error('Setup: base_url is "' + baseUrl + '". Running from the manual trigger there is no ' +
+    'request to read it from, so set base_url in the Config node to this instance\\'s public URL ' +
+    '(for example https://n8n.example.com), or run setup over POST /webhook/lp-setup instead, ' +
+    'which reads it from the request.');
+}
+CONFIG.base_url = baseUrl;
 
 if (mode === 'manual') {
   const missing = ['odoo_url', 'odoo_db', 'odoo_user', 'odoo_password'].filter(k => !CONFIG[k]);

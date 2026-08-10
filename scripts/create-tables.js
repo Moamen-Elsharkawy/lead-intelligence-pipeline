@@ -23,7 +23,7 @@ const path = require('path');
   }
 })();
 
-const BASE = (process.env.N8N_API_URL || 'https://moamen.dsoqi.online').replace(/\/+$/, '');
+const BASE = (process.env.N8N_API_URL || '').replace(/\/+$/, '');
 const KEY = process.env.N8N_API_KEY;
 if (!KEY) { console.error('N8N_API_KEY is not set (put it in .env at the repo root).'); process.exit(1); }
 

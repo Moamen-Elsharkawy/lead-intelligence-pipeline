@@ -29,7 +29,7 @@ the architecture rather than being special-cased. The rest of the design is deli
 04_Architecture/      Mermaid architecture diagram (renders on GitHub)
 05_Test_Evidence/     the edge-case runner, its output, the matrix, and the Odoo API probe
 06_Sample_Data/       website / WhatsApp / CSV payloads, including deliberately broken ones
-scripts/              build, deploy, create tables, unit tests
+scripts/              build, deploy, create tables, reset the demo, unit tests
 ```
 
 ## The eleven workflows
@@ -73,7 +73,7 @@ node scripts/create-tables.js       # creates the eight lp_* data tables
 node scripts/deploy.js              # pushes and publishes all 11 workflows
 curl -X POST https://<your-n8n>/webhook/lp-setup \
      -H "X-LP-Token: $LP_WEBHOOK_TOKEN" -H 'Content-Type: application/json' \
-     -d '{"mode":"demo"}'           # provisions Odoo, stages, field, roster
+     -d '{"mode":"demo","manager_email":"you@example.com"}'   # Odoo, stages, field, roster
 ```
 
 Three n8n credentials are referenced **by name**, never by id, and none of their values are in this
@@ -90,7 +90,7 @@ repo:
 Full detail in [RUNNING.md](RUNNING.md).
 
 ```bash
-node scripts/test-scoring.js                 # 58 unit tests, no network
+node scripts/test-scoring.js                 # 61 unit tests, no network
 node scripts/test-intake.js                  # 77 unit tests, no network
 node 05_Test_Evidence/run-edge-cases.mjs     # all 15 cases against the live pipeline
 node 05_Test_Evidence/run-edge-cases.mjs 7   # just one
@@ -137,6 +137,12 @@ before the builder existed:
 The JSON is committed and importable on its own - you never need to run the builder to review or
 run this. Edit the spec and rebuild if you want to change behaviour.
 
+**The cost, stated plainly: the JSON files are large** (300-500 KB each). n8n Code nodes cannot
+`require` anything, so the shared runtime is inlined into every node that uses it - the same 900
+lines, twenty times over. That is the price of the tests and the nodes running identical source
+rather than two copies that agree today. **Read the specs in `_src/`, not the JSON**; the JSON is
+build output, and it is committed only so the submission is importable without a build step.
+
 ## Where to look first
 
 - **Is it real?** [05_Test_Evidence/EDGE-CASES.md](../05_Test_Evidence/EDGE-CASES.md) - fifteen
@@ -148,7 +154,8 @@ run this. Edit the spec and rebuild if you want to change behaviour.
 
 ## Cost
 
-At the measured rate, the AI layer costs about **$0.09 per 1,000 classified leads**
-(`google/gemini-2.5-flash-lite`, ~700 input and ~120 output tokens per lead, and it is skipped
-entirely when a lead has no free text). Everything else - n8n, Data Tables, the Odoo sandbox - is
-free.
+The AI layer costs about **$0.07 per 1,000 classified leads**. That is arithmetic, not a meter
+reading: `google/gemini-2.5-flash-lite` at its list price of $0.10/M input and $0.40/M output, and
+this prompt at ~285 input and ~95 output tokens per lead. It is also an upper bound, because leads
+with no free text are not classified at all. Everything else - n8n, Data Tables, the Odoo sandbox -
+is free.

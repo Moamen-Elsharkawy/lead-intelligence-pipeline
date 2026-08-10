@@ -116,11 +116,20 @@ be demonstrated in seconds by winding a `due_at` back and ticking.
 ## The test suite
 
 ```bash
-node scripts/test-scoring.js               # 58 assertions, no network
+node scripts/test-scoring.js               # 61 assertions, no network
 node scripts/test-intake.js                # 77 assertions, no network
+
+node scripts/demo-reset.js you@example.com # OPTIONAL: back to a known-empty state
 node 05_Test_Evidence/run-edge-cases.mjs   # 15 cases against the live pipeline
 node 05_Test_Evidence/run-edge-cases.mjs 7 14
 ```
+
+**Reset first if you are running the suite repeatedly.** The cases are designed to survive leftover
+state - identities are run-unique - but they cannot survive a saturated roster: each run leaves
+about fifteen active leads behind and the seeded capacities are 8, 8 and 6, so by the third
+consecutive run every salesperson is full and the reassignment case has nowhere to reassign to.
+`demo-reset.js` recreates the tables, provisions a fresh Odoo sandbox and re-arms the mail redirect,
+in about ninety seconds. It is destructive by design.
 
 The unit suites cover the pure logic - normalisation, scoring, banding, conflict detection,
 idempotency keys, backoff, CSV parsing - and run in about a second with nothing attached.

@@ -15,7 +15,7 @@
  *   node scripts/deploy.js LP-90        deploy only files matching LP-90
  *   node scripts/deploy.js --dry        show what would happen
  *
- * Requires N8N_API_URL (default https://moamen.dsoqi.online) and N8N_API_KEY.
+ * Requires N8N_API_URL and N8N_API_KEY in the repo-root .env.
  */
 const fs = require('fs');
 const path = require('path');
@@ -39,7 +39,7 @@ const path = require('path');
   }
 })();
 
-const BASE = (process.env.N8N_API_URL || 'https://moamen.dsoqi.online').replace(/\/+$/, '');
+const BASE = (process.env.N8N_API_URL || '').replace(/\/+$/, '');
 const KEY = process.env.N8N_API_KEY;
 const OUT = path.join(__dirname, '..', '02_Workflows');
 const IDS_FILE = path.join(__dirname, '..', '.n8n-ids.json');

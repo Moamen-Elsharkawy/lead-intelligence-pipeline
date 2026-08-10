@@ -236,7 +236,7 @@
       "waitBetweenTries": 2000,
       "onError": "continueRegularOutput",
       "alwaysOutputData": true,
-      "notes": "The prompt withholds the deterministic score ON PURPOSE. Show a model the number\nit is being checked against and it will agree with it, and the conflict detector\nthen measures anchoring rather than disagreement.\n\ntemperature 0 and response_format json_object: this is a classifier, not a writer.\nmax_tokens 300 caps both the spend and the blast radius of a rambling answer.\n\nCost at the model's list price ($0.10/1M in, $0.40/1M out) and this prompt size:\nroughly $0.09 per 1,000 classified leads, and only leads with real free text are\nclassified at all.\n\ncontinueRegularOutput: edge case 4. An unavailable model must degrade the lead to\nrules-only, never block it."
+      "notes": "The prompt withholds the deterministic score ON PURPOSE. Show a model the number\nit is being checked against and it will agree with it, and the conflict detector\nthen measures anchoring rather than disagreement.\n\ntemperature 0 and response_format json_object: this is a classifier, not a writer.\nmax_tokens 300 caps both the spend and the blast radius of a rambling answer.\n\nCost at the model's list price ($0.10/1M in, $0.40/1M out) and this prompt size:\nroughly $0.07 per 1,000 classified leads, and only leads with real free text are\nclassified at all.\n\ncontinueRegularOutput: edge case 4. An unavailable model must degrade the lead to\nrules-only, never block it."
     },
     {
       "id": "e3e58d67-a7d6-4a41-82a3-5099f833ccaf",

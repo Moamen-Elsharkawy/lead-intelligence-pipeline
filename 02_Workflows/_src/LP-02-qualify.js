@@ -312,7 +312,7 @@ return [{ json: {
         + 'temperature 0 and response_format json_object: this is a classifier, not a writer.\n'
         + 'max_tokens 300 caps both the spend and the blast radius of a rambling answer.\n\n'
         + 'Cost at the model\'s list price ($0.10/1M in, $0.40/1M out) and this prompt size:\n'
-        + 'roughly $0.09 per 1,000 classified leads, and only leads with real free text are\n'
+        + 'roughly $0.07 per 1,000 classified leads, and only leads with real free text are\n'
         + 'classified at all.\n\n'
         + 'continueRegularOutput: edge case 4. An unavailable model must degrade the lead to\n'
         + 'rules-only, never block it.',

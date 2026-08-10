@@ -31,11 +31,11 @@ for (const line of fs.existsSync(path.join(ROOT, '.env'))
   if (m && !/^\s*#/.test(line)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
 }
 
-const BASE = (process.env.N8N_API_URL || 'https://moamen.dsoqi.online').replace(/\/+$/, '');
+const BASE = (process.env.N8N_API_URL || '').replace(/\/+$/, '');
 const KEY = process.env.N8N_API_KEY;
 const TOKEN = process.env.LP_WEBHOOK_TOKEN;
-if (!KEY || !TOKEN) {
-  console.error('Set N8N_API_KEY and LP_WEBHOOK_TOKEN in the repo-root .env first.');
+if (!BASE || !KEY || !TOKEN) {
+  console.error('Set N8N_API_URL, N8N_API_KEY and LP_WEBHOOK_TOKEN in the repo-root .env first.');
   process.exit(1);
 }
 
@@ -468,8 +468,18 @@ test(9, 'Owner becomes unavailable after assignment -> reassigned by the tick', 
   }, { tries: 30, waitMs: 2000 });
 
   const owner = row.owner_id;
-  const agent = (await rows('lp_agents', eq('agent_id', owner)))[0];
+  const roster = await rows('lp_agents');
+  const agent = roster.find((a) => a.agent_id === owner);
   if (!agent) throw new Error(`assigned owner ${owner} is not on the roster`);
+
+  // Guarantee the precondition instead of hoping for it. The suite leaves its
+  // leads behind, so after two or three runs every rep is at their seeded
+  // capacity (8, 8, 6) and there is genuinely nowhere to reassign to - the
+  // picker lands back on the same owner and this case fails for a reason that
+  // has nothing to do with owner health. Headroom is part of the scenario, so
+  // the test sets it up and puts it back.
+  const others = roster.filter((a) => a.agent_id !== owner);
+  for (const a of others) await upsert('lp_agents', eq('agent_id', a.agent_id), { ...a, capacity: 999, available: true });
 
   await upsert('lp_agents', eq('agent_id', owner), { ...agent, available: false });
   try {
@@ -481,6 +491,7 @@ test(9, 'Owner becomes unavailable after assignment -> reassigned by the tick', 
     return `owner ${owner} marked unavailable -> tick reassigned ${uid} to ${moved.owner_id} (rung ${moved.assign_rung})`;
   } finally {
     await upsert('lp_agents', eq('agent_id', owner), { ...agent, available: true });
+    for (const a of others) await upsert('lp_agents', eq('agent_id', a.agent_id), { ...a });
   }
 });
 

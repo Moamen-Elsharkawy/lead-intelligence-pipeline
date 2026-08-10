@@ -524,7 +524,8 @@
           ]
         },
         "options": {}
-      }
+      },
+      "notes": "The false branch is deliberately empty, and n8n's validator will warn about that.\n\nEvery non-requalify action is a refusal - bad_request, not_found, already_handled,\nno_lead_record - and a refusal must NOT mark the dead letter replayed. The caller\nalready has its answer from the response branch, which runs in parallel. So both\nnodes hanging off the true branch is the intent: re-dispatch AND record, together\nor not at all."
     },
     {
       "id": "d8337029-1455-4f62-8ecd-779982d067d2",

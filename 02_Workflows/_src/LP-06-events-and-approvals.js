@@ -352,7 +352,9 @@ return [{ json: {
       n: 'Build Event Response',
       t: 'code',
       code: `
-const d = $input.first().json;
+// Read the decision by name, not from $input: this node now sits AFTER the
+// lead write, so its input is a Data Table result, not the decision.
+const d = $('Decide Effect').first().json;
 return [{ json: {
   ok: !!d.ok,
   status: d.status || 200,
@@ -766,17 +768,31 @@ return targets.map(j => ({ json: {
     ['Read Event Claim', 'Read Stage Map'],
     ['Read Stage Map', 'Decide Effect'],
 
-    // Answer the caller on one branch; do the work on the other, behind a
-    // single gate so a 404 or a duplicate never reaches a write.
-    ['Decide Effect', 'Build Event Response'],
-    ['Build Event Response', 'Respond Event'],
     ['Decide Effect', 'Applies?'],
+
+    // The response comes AFTER the lead write, and that ordering is the whole
+    // point of this arrangement.
+    //
+    // It used to be a sibling branch: answer the caller on one side, do the
+    // work on the other. That makes the 200 mean "accepted", not "applied" -
+    // and an opt-out that is merely accepted is not an opt-out. A tick firing
+    // in the gap between the response and the write read the lead as still
+    // consenting and sent the follow-up. EC-10 caught it doing exactly that.
+    //
+    // Only the lead write is in front of the response, not the whole fan-out:
+    // consent=denied on the lead row is the first stop condition LP-92
+    // checks, so once that row is written no message can escape. Job
+    // cancellation and the Odoo write are belt-and-braces and stay behind the
+    // response, which keeps it fast.
+    ['Applies?', 'Apply To Lead', 0],
+    ['Apply To Lead', 'Build Event Response'],
+    ['Applies?', 'Build Event Response', 1], // nothing to apply: answer and stop
+    ['Build Event Response', 'Respond Event'],
 
     ['Applies?', 'Read Lead Jobs', 0],
     ['Read Lead Jobs', 'Cancel Jobs'],
     ['Cancel Jobs', 'Write Cancelled Jobs'],
 
-    ['Applies?', 'Apply To Lead', 0],
     ['Applies?', 'Claim Event', 0],
     ['Applies?', 'Write Event Audit', 0],
     ['Applies?', 'Odoo Change?', 0],
