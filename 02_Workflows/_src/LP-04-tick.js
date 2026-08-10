@@ -36,6 +36,27 @@ module.exports = {
       p: { rule: { interval: [{ field: 'minutes', minutesInterval: 5 }] } },
     },
 
+    {
+      n: 'Run Tick Now',
+      t: 'webhook',
+      p: {
+        httpMethod: 'POST',
+        path: 'lp-tick',
+        authentication: 'headerAuth',
+        responseMode: 'onReceived',
+        options: {},
+      },
+      creds: { httpHeaderAuth: { name: 'LP Webhook Token (X-LP-Token)' } },
+      notes: 'The same three jobs, on demand. Two reasons it exists beyond convenience:\n\n'
+        + '1. It makes the queue behaviour DEMONSTRABLE. Edge cases 9 and 10 are about what\n'
+        + '   happens on the next tick, and a reviewer should not have to wait five minutes\n'
+        + '   per assertion to watch them.\n'
+        + '2. It is what an operator wants at 4pm on a Friday after fixing a credential -\n'
+        + '   "drain the backlog now" rather than "wait and hope".\n\n'
+        + 'responseMode onReceived: it answers 200 immediately and keeps working, because\n'
+        + 'the caller wants an acknowledgement, not a report. The report is LP-07.',
+    },
+
     // =======================================================================
     // A. Drain the due queue
     // =======================================================================
@@ -741,6 +762,11 @@ return out;
     ['Every 5 Minutes', 'Read Stuck Jobs'],
     ['Every 5 Minutes', 'Read Stale Claims'],
     ['Every 5 Minutes', 'Read All Agents'],
+
+    ['Run Tick Now', 'Read Due Jobs'],
+    ['Run Tick Now', 'Read Stuck Jobs'],
+    ['Run Tick Now', 'Read Stale Claims'],
+    ['Run Tick Now', 'Read All Agents'],
 
     ['Read Due Jobs', 'Claim Batch'],
     ['Claim Batch', 'Mark In Flight'],

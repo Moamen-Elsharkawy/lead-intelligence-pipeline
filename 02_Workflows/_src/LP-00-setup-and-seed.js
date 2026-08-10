@@ -124,12 +124,17 @@ return [{ json: { ...CONFIG, mode, agents: AGENTS } }];
 
     {
       n: 'Reject Unknown Mode',
-      t: 'code',
-      code: `
-throw new Error('Setup: mode "' + ($input.first().json.mode ?? '') + '" is not one of demo, keep, manual. Fix the Config node.');
-`,
+      t: 'stopAndError',
+      p: {
+        errorType: 'errorMessage',
+        errorMessage: '={{ "Setup: mode \\"" + ($json.mode ?? "") + "\\" is not one of demo, keep, manual. Fix the Config node." }}',
+      },
       notes: 'A typo in the mode string would otherwise fall through every branch and finish\n'
-        + 'with a green tick having done nothing at all.',
+        + 'with a green tick having done nothing at all.\n\n'
+        + 'Stop and Error rather than a Code node that only throws. Both fail the run, but a\n'
+        + 'Code node whose body never returns anything is indistinguishable from one that\n'
+        + 'forgot to - the validator flags it as "must return data", correctly, and a real\n'
+        + 'missing return elsewhere would then be lost in the noise.',
     },
 
     {

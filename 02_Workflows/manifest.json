@@ -28,7 +28,7 @@
     {
       "file": "LP-04-tick.json",
       "name": "LP-04 Tick",
-      "nodes": 23,
+      "nodes": 24,
       "purpose": "Drains the follow-up and SLA queue, requeues stuck work, dead-letters stale CRM claims, reassigns orphaned leads."
     },
     {
@@ -46,7 +46,7 @@
     {
       "file": "LP-07-ops-report.json",
       "name": "LP-07 Ops Report",
-      "nodes": 12,
+      "nodes": 13,
       "purpose": "Daily operational summary and an on-demand JSON metrics endpoint over the audit, lead, job and dead-letter tables."
     },
     {
@@ -68,5 +68,5 @@
       "purpose": "Enrichment, WhatsApp and booking stand-ins, with on-demand deterministic failure injection."
     }
   ],
-  "total_nodes": 209
+  "total_nodes": 211
 }

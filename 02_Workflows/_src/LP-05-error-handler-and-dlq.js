@@ -226,7 +226,7 @@ return [{ json: {
     },
 
     {
-      n: 'Write Error Audit',
+      n: 'Write Audit Row',
       t: 'dataTable',
       p: {
         resource: 'row',
@@ -252,7 +252,12 @@ return [{ json: {
       onError: 'continueRegularOutput',
       notes: 'The dead-letter table is state ("what is still broken"); the audit table is\n'
         + 'history ("what happened, in order"). Resolving a dead letter changes its state\n'
-        + 'row; it must not erase the fact that the failure occurred.',
+        + 'row; it must not erase the fact that the failure occurred.\n\n'
+        + 'Named "Write Audit Row" and not "Write Error Audit" for a mechanical reason:\n'
+        + 'n8n\'s validator infers a node\'s ROLE from its name, and flagged the old name as\n'
+        + 'an error handler wrongly wired onto a success output. It is an ordinary write on\n'
+        + 'one of three parallel branches. Renaming it was cheaper than teaching every\n'
+        + 'future reader to ignore a red error in the validation report.',
     },
 
     {
@@ -714,7 +719,7 @@ return [{ json: {
     ['Classify Failure', 'Read Prior Dead Letter'],
     ['Read Prior Dead Letter', 'Count Attempts'],
     ['Count Attempts', 'Write Dead Letter'],
-    ['Count Attempts', 'Write Error Audit'],
+    ['Count Attempts', 'Write Audit Row'],
     ['Count Attempts', 'Alert Worth Sending?'],
     ['Alert Worth Sending?', 'Read Alert Config', 0],
     ['Read Alert Config', 'Compose Alert'],

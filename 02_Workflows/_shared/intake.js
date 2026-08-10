@@ -38,14 +38,30 @@ function clean(v, max) {
     .slice(0, max || 200);
 }
 
+// Hoisted to constants rather than returned as inline array literals.
+//
+// The reason is not style. This whole file is inlined into every Code node in
+// every workflow by scripts/build-workflows.js, and n8n's workflow validator
+// scans a Code node's source for a return statement followed by an array
+// literal, to check that the node yields items shaped {json: ...}. A helper
+// that returns an array of STRINGS reads to that check as a malformed return,
+// and it reported the error against all 209 nodes at once - a false positive,
+// but one that makes a genuine error impossible to find.
+//
+// The check does not skip comments either, so this note deliberately describes
+// the pattern instead of quoting it. A shared prelude means one file's habits
+// propagate to every node in the system, including its accidents.
+const CONSENT_YES = ['true', 'yes', 'y', '1', 'granted', 'agree', 'agreed', 'opted_in', 'opt-in', 'on', 'checked'];
+const CONSENT_NO = ['false', 'no', 'n', '0', 'denied', 'declined', 'refused', 'unsubscribed', 'off'];
+
 function truthy(v) {
   const s = String(v ?? '').trim().toLowerCase();
-  return ['true', 'yes', 'y', '1', 'granted', 'agree', 'agreed', 'opted_in', 'opt-in', 'on', 'checked'].includes(s);
+  return CONSENT_YES.includes(s);
 }
 
 function falsy(v) {
   const s = String(v ?? '').trim().toLowerCase();
-  return ['false', 'no', 'n', '0', 'denied', 'declined', 'refused', 'unsubscribed', 'off'].includes(s);
+  return CONSENT_NO.includes(s);
 }
 
 // ---------------------------------------------------------------------------

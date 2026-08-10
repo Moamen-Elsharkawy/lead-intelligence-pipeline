@@ -93,6 +93,14 @@ return [{ json: {
     ai_model: cfg.ai_model || 'google/gemini-2.5-flash-lite',
     manager_email: cfg.manager_email || '',
     fallback_owner_id: cfg.fallback_owner_id || 'mgr-01',
+    // A failure-injection hook, and the only one in the system. Setting
+    // lp_config.enrich_chaos to something like "?fail=timeout&times=2" appends
+    // it to the enrichment URL, which is how edge case 3 is demonstrated on
+    // demand instead of by waiting for a real provider to have a bad day.
+    //
+    // It can only ever reach LP-99, the mock. A real enrichment provider would
+    // ignore an unknown query string, and the key is empty in normal operation.
+    enrich_chaos: cfg.enrich_chaos || '',
   },
   suppressed,
   // Enrichment needs a company domain. A free-provider address gives none, and
@@ -126,7 +134,7 @@ return [{ json: {
       t: 'http',
       p: {
         method: 'POST',
-        url: '={{ $json.cfg.base_url }}/webhook/lp-mock-enrich',
+        url: '={{ $json.cfg.base_url }}/webhook/lp-mock-enrich{{ $json.cfg.enrich_chaos }}',
         authentication: 'genericCredentialType',
         genericAuthType: 'httpHeaderAuth',
         sendBody: true,

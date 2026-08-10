@@ -230,6 +230,23 @@ return [{ json: {
     },
 
     {
+      n: 'Public Metrics',
+      t: 'code',
+      usesRuntime: false,
+      code: `
+// The API answer is not simply the internal object. manager_email is an
+// operator's address and has no business leaving the system through a metrics
+// endpoint just because it happened to be in scope.
+const { manager_email, ...body } = $input.first().json;
+return [{ json: body }];
+`,
+      notes: 'Also keeps the Respond node off the fan-out. n8n\'s validator infers roles from node\n'
+        + 'TYPE as well as name, and reads a respondToWebhook sitting directly among sibling\n'
+        + 'branches as an error handler wired to the wrong output - so the two nodes that\n'
+        + 'genuinely belong on separate branches are the email renderer and this one.',
+    },
+
+    {
       n: 'Respond Metrics',
       t: 'respond',
       p: {
@@ -353,7 +370,8 @@ return [{ json: {
     ['Read Jobs', 'Read Dead Letters'],
     ['Read Dead Letters', 'Read Ops Config'],
     ['Read Ops Config', 'Compute Metrics'],
-    ['Compute Metrics', 'Respond Metrics'],
+    ['Compute Metrics', 'Public Metrics'],
+    ['Public Metrics', 'Respond Metrics'],
     ['Compute Metrics', 'Render Email'],
     ['Render Email', 'Send Report'],
   ],
