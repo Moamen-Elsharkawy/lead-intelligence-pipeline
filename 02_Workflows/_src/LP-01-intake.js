@@ -650,7 +650,7 @@ return [{ json: {
       n: 'Handoff to Qualify',
       t: 'executeWorkflow',
       p: {
-        workflowId: '@LP-02 Qualify and Route',
+        workflowId: '@LP-02 Qualify',
         mode: 'each',
         workflowInputs: {
           mappingMode: 'defineBelow',

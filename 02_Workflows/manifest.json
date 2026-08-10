@@ -14,10 +14,52 @@
       "purpose": "Website, WhatsApp and CSV intake: normalize to one schema, gate duplicate deliveries, quarantine bad rows, hand off."
     },
     {
+      "file": "LP-02-qualify.json",
+      "name": "LP-02 Qualify",
+      "nodes": 15,
+      "purpose": "Enrichment, deterministic scoring, independent AI classification, conflict detection, band decision."
+    },
+    {
+      "file": "LP-03-route-and-sync.json",
+      "name": "LP-03 Route and Sync",
+      "nodes": 23,
+      "purpose": "Duplicate resolution, workload-aware assignment, idempotent Odoo upsert, stage transition, follow-up scheduling, outreach."
+    },
+    {
+      "file": "LP-04-tick.json",
+      "name": "LP-04 Tick",
+      "nodes": 23,
+      "purpose": "Drains the follow-up and SLA queue, requeues stuck work, dead-letters stale CRM claims, reassigns orphaned leads."
+    },
+    {
+      "file": "LP-05-error-handler-and-dlq.json",
+      "name": "LP-05 Error Handler and DLQ",
+      "nodes": 23,
+      "purpose": "Catch every workflow failure, classify it, dead-letter it, alert when useful, and replay it safely."
+    },
+    {
+      "file": "LP-06-events-and-approvals.json",
+      "name": "LP-06 Events and Approvals",
+      "nodes": 23,
+      "purpose": "Reply, opt-out, booking, close and sales-action events, plus the VIP approve/reject decision."
+    },
+    {
+      "file": "LP-07-ops-report.json",
+      "name": "LP-07 Ops Report",
+      "nodes": 12,
+      "purpose": "Daily operational summary and an on-demand JSON metrics endpoint over the audit, lead, job and dead-letter tables."
+    },
+    {
       "file": "LP-90-odoo-gateway.json",
       "name": "LP-90 Odoo Gateway",
       "nodes": 10,
       "purpose": "Single egress point for Odoo. Auth, retry with bounded backoff, and the 200-on-error trap."
+    },
+    {
+      "file": "LP-92-send-message.json",
+      "name": "LP-92 Send Message",
+      "nodes": 17,
+      "purpose": "Single outbound gate: idempotent claim, last-moment stop-condition recheck, email or WhatsApp, recorded result."
     },
     {
       "file": "LP-99-mock-services.json",
@@ -26,5 +68,5 @@
       "purpose": "Enrichment, WhatsApp and booking stand-ins, with on-demand deterministic failure injection."
     }
   ],
-  "total_nodes": 73
+  "total_nodes": 209
 }
