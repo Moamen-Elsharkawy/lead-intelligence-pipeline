@@ -22,7 +22,7 @@
     {
       "file": "LP-03-route-and-sync.json",
       "name": "LP-03 Route and Sync",
-      "nodes": 23,
+      "nodes": 24,
       "purpose": "Duplicate resolution, workload-aware assignment, idempotent Odoo upsert, stage transition, follow-up scheduling, outreach."
     },
     {
@@ -68,5 +68,5 @@
       "purpose": "Enrichment, WhatsApp and booking stand-ins, with on-demand deterministic failure injection."
     }
   ],
-  "total_nodes": 211
+  "total_nodes": 212
 }

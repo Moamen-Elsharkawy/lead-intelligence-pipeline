@@ -564,7 +564,16 @@ return stale.map(r => ({ json: {
         filters: { conditions: [{ keyName: 'status', condition: 'eq', keyValue: 'active' }] },
         returnAll: true,
       },
+      executeOnce: true,
       alwaysOutputData: true,
+      notes: 'executeOnce is load-bearing, not tidiness. The node upstream emits one item per\n'
+        + 'agent, and a Data Table read runs once per input item - so without this the whole\n'
+        + 'owner-health branch ran four times over. It reassigned the same lead four times,\n'
+        + 'wrote four identical audit rows, sent four writes to Odoo, and counted every\n'
+        + 'salesperson\'s workload at four times its real value, which pushed the team over\n'
+        + 'capacity and dropped assignment to the fallback rung. Found by reading the audit\n'
+        + 'log after EC-9 failed: four rows saying "mgr-01 -> mgr-01" is not a routing bug,\n'
+        + 'it is the same routing decision made four times.',
     },
 
     {
@@ -574,20 +583,29 @@ return stale.map(r => ({ json: {
 // EDGE CASE 9. Nothing errors when a salesperson goes on leave, which is
 // exactly the problem: their leads keep sitting there, the SLA quietly passes,
 // and the first sign of trouble is a customer who never heard back.
+const now = Math.floor(Date.now() / 1000);
+
+const leads = $input.all().map(i => i.json)
+  .filter(r => r && r.lead_uid && r.status === 'active' && r.owner_id);
+
+// Workload is counted from the leads, for the same reason LP-03 counts it: the
+// stored counter on the agent row has no reliable decrement and reads 0 forever.
+const openByOwner = new Map();
+for (const r of leads) {
+  const k = String(r.owner_id);
+  openByOwner.set(k, (openByOwner.get(k) || 0) + 1);
+}
+
 const agents = $('Read All Agents').all().map(i => i.json)
   .filter(a => a && a.agent_id)
   .map(a => ({
     ...a,
     available: a.available === true || String(a.available) === 'true',
     capacity: Number(a.capacity || 0),
-    open_leads: Number(a.open_leads || 0),
+    open_leads: openByOwner.get(String(a.agent_id)) || 0,
   }));
 
 const byId = new Map(agents.map(a => [String(a.agent_id), a]));
-const now = Math.floor(Date.now() / 1000);
-
-const leads = $input.all().map(i => i.json)
-  .filter(r => r && r.lead_uid && r.status === 'active' && r.owner_id);
 
 const orphans = leads.filter(l => {
   const a = byId.get(String(l.owner_id));

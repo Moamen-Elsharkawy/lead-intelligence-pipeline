@@ -174,6 +174,20 @@ check('ties break deterministically by agent_id', C.pickOwner([
   { agent_id: 'z1', services: 'automation', capacity: 10, open_leads: 1, available: true },
   { agent_id: 'b1', services: 'automation', capacity: 10, open_leads: 1, available: true },
 ], 'automation', 'mgr').agent_id, 'b1');
+// The manager is seeded with every service category and a capacity of 50, so on
+// an idle roster their load ratio is 0 and "mgr-01" beats "sales-01" on the
+// alphabetical tie-break. A clean-slate run showed exactly that: the escalation
+// contact had quietly become the default owner of every automation lead.
+const withMgr = [
+  { agent_id: 'mgr-01', services: 'automation,integration', capacity: 50, open_leads: 0, available: true },
+  { agent_id: 'sales-01', services: 'automation', capacity: 8, open_leads: 0, available: true },
+];
+check('the fallback owner is not in the normal rotation', C.pickOwner(withMgr, 'automation', 'mgr-01').agent_id, 'sales-01');
+check('  ...even when the reps are all busy', C.pickOwner([
+  { agent_id: 'mgr-01', services: 'automation', capacity: 50, open_leads: 0, available: true },
+  { agent_id: 'sales-01', services: 'automation', capacity: 8, open_leads: 8, available: true },
+], 'automation', 'mgr-01').rung, 3);
+check('  ...and reaching them raises the alert', C.pickOwner(withMgr.slice(0, 1), 'automation', 'mgr-01').alert, true);
 
 console.log('\n--- retry policy ----------------------------------------------');
 // Jitter makes a single sample a coin toss, so hammer it. The original

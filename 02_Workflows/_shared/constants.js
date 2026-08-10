@@ -354,7 +354,14 @@ const ASSIGN_RUNGS = [
 function pickOwner(agents, service, fallbackOwnerId) {
   const load = (a) => Number(a.open_leads || 0) / Math.max(1, Number(a.capacity || 1));
   const byLoad = (x, y) => load(x) - load(y) || String(x.agent_id).localeCompare(String(y.agent_id));
-  const free = agents.filter((a) => a.available && Number(a.open_leads) < Number(a.capacity));
+  // The fallback owner is the safety net, not a member of the rotation. They
+  // are usually the sales manager: high capacity and every service category,
+  // which on an idle roster means a low load ratio and a winning tie-break, so
+  // leaving them in the pool quietly makes the manager the default owner of
+  // everything. Rung 3 is where they belong, and rung 3 raises an alert.
+  const free = agents.filter((a) => a.available
+    && Number(a.open_leads) < Number(a.capacity)
+    && String(a.agent_id) !== String(fallbackOwnerId));
   const matched = free.filter((a) => String(a.services || '').split(',').map((s) => s.trim()).includes(service));
   if (matched.length) return { agent_id: matched.sort(byLoad)[0].agent_id, rung: 1 };
   if (free.length) return { agent_id: free.sort(byLoad)[0].agent_id, rung: 2 };

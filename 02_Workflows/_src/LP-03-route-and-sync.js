@@ -302,6 +302,31 @@ return [{ json: {
     },
 
     {
+      n: 'Count Open Leads',
+      t: 'dataTable',
+      p: {
+        resource: 'row',
+        operation: 'get',
+        dataTableId: { __rl: true, mode: 'name', value: 'lp_lead' },
+        matchType: 'allConditions',
+        filters: { conditions: [{ keyName: 'status', condition: 'eq', keyValue: 'active' }] },
+        returnAll: true,
+      },
+      executeOnce: true,
+      alwaysOutputData: true,
+      notes: 'Workload is COUNTED here, not kept as a running total on the agent row.\n\n'
+        + 'A stored counter has to be decremented on every path that ends an assignment -\n'
+        + 'closed, merged, opted out, reassigned by the tick, rejected by a manager - and\n'
+        + 'the first path anyone forgets leaves that salesperson permanently "full". The\n'
+        + 'seeded counters were in fact all still 0 after a full edge-case run, so\n'
+        + 'load-balancing was sorting by a column that never moved and every lead landed\n'
+        + 'on the same rep.\n\n'
+        + 'Counting live rows costs one extra read per lead and cannot drift. The trade is\n'
+        + 'the 250-row page ceiling; see Known Limitations for the point where a stored\n'
+        + 'counter becomes the right answer again.',
+    },
+
+    {
       n: 'Assign Owner',
       t: 'code',
       code: `
@@ -346,11 +371,21 @@ const lost_reason = ctx.v.outcome === 'suppressed'
 // Three rungs, deterministic, tie-broken by agent_id so the same inputs always
 // produce the same owner and the routing is testable rather than "whoever the
 // table happened to return first".
-const agents = $input.all().map(i => i.json).filter(a => a && a.agent_id).map(a => ({
+// Current workload, counted from the lead table rather than read off the agent
+// row. This lead is excluded from the count - it is not assigned yet.
+const openByOwner = new Map();
+for (const r of $input.all().map(i => i.json)) {
+  if (!r || !r.lead_uid || !r.owner_id || r.status !== 'active') continue;
+  if (r.lead_uid === lead.lead_uid) continue;
+  const k = String(r.owner_id);
+  openByOwner.set(k, (openByOwner.get(k) || 0) + 1);
+}
+
+const agents = $('Read Agents').all().map(i => i.json).filter(a => a && a.agent_id).map(a => ({
   ...a,
   available: a.available === true || String(a.available) === 'true',
   capacity: Number(a.capacity || 0),
-  open_leads: Number(a.open_leads || 0),
+  open_leads: openByOwner.get(String(a.agent_id)) || 0,
 }));
 
 let owner = { agent_id: '', rung: 0, alert: false };
@@ -377,6 +412,10 @@ return [{ json: {
   odoo_user_id,
   assign_rung: owner.rung,
   assign_alert: !!owner.alert,
+  // Written to the audit row so "why this rep" is answerable from the log
+  // alone, without re-running the picker against a table that has since moved.
+  owner_load: ownerRow ? ownerRow.open_leads + '/' + ownerRow.capacity : '',
+  team_load: agents.map(a => a.agent_id + ':' + a.open_leads + '/' + a.capacity + (a.available ? '' : ' (away)')).join(' '),
   assign_reason: !assignable
     ? (close ? 'closed leads are not assigned' : 'held for human review before assignment')
     : C.ASSIGN_RUNGS[owner.rung - 1] || 'unassigned',
@@ -830,7 +869,7 @@ return [{ json: {
             execution_id: '={{ $execution.id }}',
             type: 'odoo_upserted',
             decision: '={{ $json.odoo_method + " #" + $json.odoo_lead_id + " -> " + $json.stage_name }}',
-            detail_json: '={{ JSON.stringify({ band: $json.band, stage: $json.stage_name, stage_event: $json.stage_event, closed: $json.close, duplicate: { action: $json.dup_action, reason: $json.dup_reason, candidates: $json.dup_candidates }, owner: { id: $json.owner_id, rung: $json.assign_rung, why: $json.assign_reason, alert: $json.assign_alert }, recovery: $json.recovery, outreach: $json.outreach }) }}',
+            detail_json: '={{ JSON.stringify({ band: $json.band, stage: $json.stage_name, stage_event: $json.stage_event, closed: $json.close, duplicate: { action: $json.dup_action, reason: $json.dup_reason, candidates: $json.dup_candidates }, owner: { id: $json.owner_id, rung: $json.assign_rung, why: $json.assign_reason, alert: $json.assign_alert, load: $json.owner_load, team: $json.team_load }, recovery: $json.recovery, outreach: $json.outreach }) }}',
           },
           matchingColumns: [],
           schema: [],
@@ -1009,7 +1048,8 @@ return jobs.map(j => ({ json: {
     ['Read Person Index', 'Decide Duplicate'],
     ['Decide Duplicate', 'Read Stage Map'],
     ['Read Stage Map', 'Read Agents'],
-    ['Read Agents', 'Assign Owner'],
+    ['Read Agents', 'Count Open Leads'],
+    ['Count Open Leads', 'Assign Owner'],
     ['Assign Owner', 'Read Upsert Claim'],
     ['Read Upsert Claim', 'Build Odoo Write'],
     ['Build Odoo Write', 'Claim Odoo Upsert'],

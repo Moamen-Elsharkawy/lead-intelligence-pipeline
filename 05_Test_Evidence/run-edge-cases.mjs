@@ -93,12 +93,34 @@ async function loadTables() {
 const eq = (col, val) => ({ type: 'and', filters: [{ columnName: col, condition: 'eq', value: val }] });
 
 async function rows(table, filter) {
-  const q = filter ? `?filter=${encodeURIComponent(JSON.stringify(filter))}&limit=200` : '?limit=200';
+  // limit is capped at 250 by this API; a larger value is a 400, not a clamp.
+  const q = filter ? `?filter=${encodeURIComponent(JSON.stringify(filter))}&limit=250` : '?limit=250';
   const r = await napi('GET', `/data-tables/${TABLES[table]}/rows${q}`);
+  if (r.status >= 300) throw new Error(`read ${table}: ${r.status} ${JSON.stringify(r.json)}`);
   return r.json?.data || [];
 }
-async function upsert(table, filter, data) {
-  return napi('POST', `/data-tables/${TABLES[table]}/rows/upsert`, { filter, data });
+
+/**
+ * A read returns three columns the table does not have - `id`, `createdAt`,
+ * `updatedAt` - and the natural way to edit a row is `{...row, field: value}`.
+ * That sends them straight back, and the API answers
+ * `400 unknown column name 'id'`.
+ *
+ * This cost three edge cases on the first full run. Every one of them set up
+ * its scenario with an upsert, got a silent 400 because nothing checked the
+ * status, and then failed twenty seconds later asserting on a state change
+ * that had never been written. The failure message named the assertion, not
+ * the cause, which is the worst kind of test failure: it accuses the system
+ * under test of a bug the harness caused.
+ *
+ * So: strip the three, and THROW on any non-2xx. A test harness that swallows
+ * a 400 is not a harness, it is a random number generator.
+ */
+async function upsert(table, filter, row) {
+  const { id, createdAt, updatedAt, ...data } = row;
+  const r = await napi('POST', `/data-tables/${TABLES[table]}/rows/upsert`, { filter, data });
+  if (r.status >= 300) throw new Error(`upsert ${table}: ${r.status} ${JSON.stringify(r.json)}`);
+  return r;
 }
 async function setConfig(key, value) {
   return upsert('lp_config', eq('key', key), { key, value: String(value), note: 'set by run-edge-cases.mjs' });
@@ -158,6 +180,26 @@ const website = (over = {}) => ({
   budget: '15000 USD',
   timeline: 'immediate',
   consent: true,
+  ...over,
+});
+
+/**
+ * A lead that lands in Qualified, deliberately NOT in VIP.
+ *
+ * The default `website()` fixture is a $15,000 urgent enquiry from a strategic
+ * account, so it scores 100 and every one of them goes to Awaiting Approval.
+ * That is correct behaviour and it is what EC-12 tests - but it means a VIP
+ * lead gets no follow-up sequence and is owned by the manager, so the three
+ * cases about the ordinary sales path (assignment, follow-ups, SLA) had no
+ * ordinary lead to run on.
+ *
+ * Same enquiry, non-strategic company, no budget stated: 87 points, Qualified.
+ */
+const qualified = (over = {}) => website({
+  company: 'Nile Cargo',
+  email: `q+${RUN}@nilecargo.com`,
+  budget: '',
+  message: 'We move around 400 shipments a day and dispatch re-types every order into three systems. We want to start immediately.',
   ...over,
 });
 
@@ -224,7 +266,16 @@ test(2, 'Phone formatted differently in each source -> recognised as one person'
   ];
   const first = await hook('lp-web-lead', website({ phone: spellings[0], email: `fmt+${RUN}@nilecargo.com`, name: 'Format Test' }));
   const uidA = first.json.lead_uids[0];
-  await until('first format routed', async () => (await leadRow(uidA))?.phone_key);
+  // Wait for the OPPORTUNITY, not just the lead row. Duplicate detection is a
+  // search against Odoo, so there is nothing to match until the first lead has
+  // actually been written there. Waiting only for `phone_key` - which intake
+  // sets in the first second - submitted the second spelling while the first
+  // was still being enriched, and both were correctly judged new. That is the
+  // sub-second concurrent-arrival race documented under Known Limitations, and
+  // it is not what this case is about: EC-2 is about two spellings of one
+  // number being recognised as one person.
+  await until('first format reaches Odoo', async () => (await leadRow(uidA))?.odoo_lead_id > 0,
+    { tries: 30, waitMs: 2000 });
   const rowA = await leadRow(uidA);
 
   const second = await hook('lp-web-lead', website({ phone: spellings[2], email: `fmt2+${RUN}@nilecargo.com`, name: 'Format Test' }));
@@ -407,8 +458,8 @@ test(8, 'The same message is dispatched twice -> sent once', async () => {
 });
 
 test(9, 'Owner becomes unavailable after assignment -> reassigned by the tick', async () => {
-  const r = await hook('lp-web-lead', website({
-    email: `orphan+${RUN}@acme-logistics.com`, name: 'Orphan Lead', phone: phoneFor('09'),
+  const r = await hook('lp-web-lead', qualified({
+    email: `orphan+${RUN}@nilecargo.com`, name: 'Orphan Lead', phone: phoneFor('09'),
   }));
   const uid = r.json.lead_uids[0];
   const row = await until('lead assigned', async () => {
@@ -434,8 +485,8 @@ test(9, 'Owner becomes unavailable after assignment -> reassigned by the tick', 
 });
 
 test(10, 'Opt-out lands while a follow-up is scheduled -> the follow-up never goes out', async () => {
-  const r = await hook('lp-web-lead', website({
-    email: `optout+${RUN}@acme-logistics.com`, name: 'Opt Out', phone: phoneFor('10'),
+  const r = await hook('lp-web-lead', qualified({
+    email: `optout+${RUN}@nilecargo.com`, name: 'Opt Out', phone: phoneFor('10'),
   }));
   const uid = r.json.lead_uids[0];
   await until('follow-ups scheduled', async () => {
@@ -541,9 +592,13 @@ test(13, 'One corrupted row in a CSV -> quarantined alone, the rest import', asy
   if (accepted !== 2) throw new Error(`expected 2 accepted, got ${accepted}`);
   if (quarantined !== 2) throw new Error(`expected 2 quarantined (the short row and the uncontactable one), got ${quarantined}`);
 
-  const dlq = await rows('lp_dlq');
-  const mine = dlq.filter((d) => String(d.payload_json).includes(`csv-${RUN}`));
-  if (!mine.length) throw new Error('the quarantined rows were not written to the dead-letter queue');
+  // The 202 is sent before the work, on purpose - a webhook that waits for the
+  // pipeline is a webhook that times out. So the quarantine rows are written a
+  // moment after the response, and this has to poll rather than read once.
+  const mine = await until('quarantined rows reach the dead-letter queue', async () => {
+    const found = (await rows('lp_dlq')).filter((d) => String(d.payload_json).includes(`csv-${RUN}`));
+    return found.length >= 2 ? found : null;
+  }, { tries: 15, waitMs: 1500 });
   const hasText = mine.some((d) => String(d.payload_json).includes('only-three') || String(d.error).includes('columns'));
   if (!hasText) throw new Error('the dead letter does not carry enough to fix and replay the row');
 
@@ -587,8 +642,8 @@ test(14, 'Manual re-run after a partial success -> completed steps are skipped',
 // Not one of the 14, but business rule 7 deserves the same treatment: a rule
 // stated in a document is a claim, and this makes it an observation.
 test(15, 'Business rule 7: no sales action within the SLA -> escalated and reassigned', async () => {
-  const r = await hook('lp-web-lead', website({
-    email: `sla+${RUN}@acme-logistics.com`, name: 'SLA Breach', phone: phoneFor('15'),
+  const r = await hook('lp-web-lead', qualified({
+    email: `sla+${RUN}@nilecargo.com`, name: 'SLA Breach', phone: phoneFor('15'),
   }));
   const uid = r.json.lead_uids[0];
   const row = await until('SLA timer scheduled', async () => {
