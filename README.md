@@ -6,8 +6,7 @@ scored by deterministic rules, classified separately by an LLM, routed by worklo
 followed up on a schedule, and audited end to end. Failures are classified, dead-lettered and
 replayable.
 
-Built for a technical assessment. **15 / 15 mandated edge cases pass** against a live deployment,
-from a clean slate.
+**15 / 15 mandated edge cases pass** against a live deployment, from a clean slate.
 
 ---
 
