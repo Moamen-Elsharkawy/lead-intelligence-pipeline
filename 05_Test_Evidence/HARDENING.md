@@ -1,6 +1,6 @@
 # Hardening suite: 32 checks the mandated edge cases do not cover
 
-**Latest run: 32 passed, 0 soft, 0 failed** in 68 seconds. Raw output: [last-hardening-run.json](last-hardening-run.json).
+**Latest run: 32 passed, 0 soft, 0 failed** in 64 seconds. Raw output: [last-hardening-run.json](last-hardening-run.json).
 
 ```bash
 node scripts/demo-reset.js you@example.com    # optional, back to a clean slate
@@ -36,8 +36,10 @@ row read back out of Odoo, a state in the ledger. Never on "it did not throw".
 
 ## What it found
 
-Four real defects, all fixed. None of them was reachable from the fourteen mandated cases, which is
-the argument for the suite existing.
+Six real defects, all fixed. The first four were not reachable from the fourteen mandated cases,
+which is the argument for the suite existing. The last two were found in the suite and the evidence
+generator themselves, on a re-run against a fresh sandbox six days later, which is the argument for
+re-running it rather than trusting a green result from last week.
 
 ### 1. Arabic input silently scored 20 points low
 
@@ -110,6 +112,54 @@ The general lesson is the one this whole project keeps re-learning in new costum
 with two homes is a definition that will disagree with itself. It happened with the budget
 thresholds, with the urgency field name, and now with the schema itself.
 
+### 5. Check 27 had never once tested what it claimed to test
+
+Found on 2026-08-16, by re-running the suite against a fresh sandbox rather than trusting the
+previous green result.
+
+Check 27 asks whether a credential death is classified permanent and never retried. It called the
+enrichment mock with `?fail=401` and asserted `status >= 400`. But `401` is not a value the chaos
+injector has ever supported: the documented value is `?fail=auth`, and anything unrecognised routes
+to the unknown-chaos branch, which answers **400**. So a weak assertion accepted the wrong branch and
+the check passed while never once exercising a 401.
+
+It then failed for a *third* reason, which is how it was caught. The injector counts calls per
+`mock:<service>:<key>:<fail>` in a data table and serves the failure only while the count is inside
+the requested `times`. With no `key` parameter the counter is shared and persists between runs, so
+the call returned 400 on the first ever run and a plain **200** on every run after. A check whose
+meaning depends on whether anyone ran `demo-reset.js` first is not a check.
+
+Three separate weaknesses, each individually survivable, compounding into a test that was decorative:
+an unsupported parameter, an assertion too loose to notice, and hidden state across runs. It now
+sends `?fail=auth` with a per-run key and asserts on the exact status **and** the body, and it passes
+twice in a row from a dirty database.
+
+The wrong value was not confined to the test. `?fail=401` was documented in `RUNNING.md`,
+`ERROR-STRATEGY.md`, `EDGE-CASES.md` and - worst - as a live beat in `DEMO-SCRIPT.md`, where
+narrating "401 is never retried" would have produced an `unknown_chaos` 400 on camera. All four
+corrected.
+
+### 6. The evidence generator was a no-op on a CRLF checkout
+
+`refresh-evidence.js` exists to make the results table *be* the test run rather than a claim about
+it. For EDGE-CASES.md it was doing the opposite.
+
+It read the document with `fs.readFileSync` and split on `'\n'`, which on a CRLF working tree leaves
+a trailing `\r` on every line - so the row regex, anchored `\|$`, never matched and every row was
+returned unchanged. The header updated regardless, because `.*$` eats the `\r` quite happily. The
+result: a run reported "15/15 passed", stamped a fresh run id and today's date, and left a matrix
+underneath still quoting lead ids and timings from six days earlier. Stale evidence under a fresh
+date is worse than obviously stale evidence.
+
+The sharpest part is that the fix was already in the file. `readDoc`/`writeDoc` helpers sit at the
+top with a comment naming this exact problem - "Git normalises these files to CRLF on this machine,
+so every `\n` anchor below would miss" - and they were applied to the hardening half and missed on
+the edge-case half, the only half that does line-anchored matching.
+
+The generator now uses them, and it re-reads its own output and throws if any row from the artefact
+is not present in the rewritten document. Silence was this bug's entire disguise, so it may no longer
+report a success it cannot demonstrate.
+
 ---
 
 ## The checks
@@ -135,7 +185,7 @@ thresholds, with the urgency field name, and now with the schema itself.
 | 8 | An event for a lead that does not exist is a 404, not a crash | unknown lead -> status 404, "no lead with id LP-19990101-DEADBEEF" | 1 |
 | 9 | An approval with an invalid decision is rejected | decision "maybe" -> ok:false, "decision must be approve or reject" | 1 |
 | 10 | A second approval on the same lead is refused, not silently applied | reject applied, then approve refused ("this lead was already rejected by manager@example.com. Rever"); state stayed rejected | 7 |
-| 11 | A WhatsApp delivery-status callback is acknowledged and ignored | status callback -> 202, lead count unchanged at 19 | 3 |
+| 11 | A WhatsApp delivery-status callback is acknowledged and ignored | status callback -> 202, lead count unchanged at 19 | 4 |
 
 ### C. Business rules, end to end
 
@@ -155,25 +205,25 @@ thresholds, with the urgency field name, and now with the schema itself.
 | 18 | A 50 KB message is truncated rather than crashing or storing whole | 52000 chars in -> free_text capped at 4000, lead completed normally | 5 |
 | 19 | Hostile strings in every field are stored as data, never executed | injection payloads stored as inert text, control characters stripped, Odoo #69 created normally | 6 |
 | 20 | A CSV over the row cap is refused with the limit named, not half-imported | 260 rows in -> 0 imported, refused with the limit named: "260 rows exceeds the 200-row synchronous limit. Split the file, or use the documented async import path." | 0 |
-| 21 | A CSV with a BOM, CRLF and quoted commas parses correctly | BOM stripped, CRLF handled, quoted commas and an embedded newline preserved: "Hassan, Mahmoud" / "Delta Clinics, LLC" | 1 |
+| 21 | A CSV with a BOM, CRLF and quoted commas parses correctly | BOM stripped, CRLF handled, quoted commas and an embedded newline preserved: "Hassan, Mahmoud" / "Delta Clinics, LLC" | 0 |
 | 22 | An import row with attested consent records where consent came from | consent=granted, consent_source=import_attested - the lawful basis is recorded per lead, not assumed | 2 |
 
 ### E. Dead letters and replay
 
 | # | Check | Result | s |
 |---|---|---|---|
-| 23 | Replaying a dead letter that does not exist is a 404 | unknown dlq_id -> 404, "no dead letter with id dlq-does-not-exist-06096653" | 0 |
-| 24 | Replaying with no dlq_id at all is a 400 | missing dlq_id -> 400, "dlq_id is required" | 1 |
-| 25 | A malformed override_json is refused instead of half-applied | bad override -> 400, and the dead letter stayed "open" rather than being marked handled | 1 |
+| 23 | Replaying a dead letter that does not exist is a 404 | unknown dlq_id -> 404, "no dead letter with id dlq-does-not-exist-83617611" | 0 |
+| 24 | Replaying with no dlq_id at all is a 400 | missing dlq_id -> 400, "dlq_id is required" | 0 |
+| 25 | A malformed override_json is refused instead of half-applied | bad override -> 400, and the dead letter stayed "open" rather than being marked handled | 0 |
 | 26 | A dead letter already handled is refused a second time | already replayed -> 409, "this dead letter is already replayed" | 1 |
-| 27 | A permanent Odoo error is classified permanent and never retried | the credential-death injector returns 400; classification of 401 as permanent+critical is covered by the unit suite (dlq rows: 9) | 1 |
+| 27 | A permanent Odoo error is classified permanent and never retried | the credential-death injector returns a true 401 ("Simulated bad or expired credential"); classification of 401 as permanent+critical is covered by scripts/test-errors.js (dlq rows: 9) | 0 |
 
 ### F. Observability
 
 | # | Check | Result | s |
 |---|---|---|---|
 | 28 | The ops endpoint returns every metric the brief asks for | all six reported - processed 29, qualified 10, duplicates 5, failed 1, manual 1, SLA 1 | 0 |
-| 29 | The public ops payload does not leak internal addresses | manager_email and odoo credentials absent from the 2092-byte public payload | 1 |
+| 29 | The public ops payload does not leak internal addresses | manager_email and odoo credentials absent from the 2092-byte public payload | 0 |
 | 30 | Every lead this suite created has a complete, readable audit trail | 11 leads checked, every one traceable from intake to CRM write, every row carrying its execution id | 1 |
 
 ### G. Instance health

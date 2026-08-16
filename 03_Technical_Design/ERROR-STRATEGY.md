@@ -226,7 +226,7 @@ quietly passes, and the first sign of trouble is a customer who never heard back
 | **Invalid response** | schema-validated; unusable → deterministic fallback, `ai_status: unavailable` | EC-4 |
 | **Unavailable service** | `continueRegularOutput` on enrichment - precision degrades, the lead does not | EC-3 |
 | **Malformed payload** | per-row validation and quarantine, with the original text kept | EC-13 |
-| **Missing credentials** | 401 → permanent + critical, **never retried**, alert immediately | `?fail=401` on any mock |
+| **Missing credentials** | 401 → permanent + critical, **never retried**, alert immediately | `?fail=auth` on any mock |
 
 ---
 

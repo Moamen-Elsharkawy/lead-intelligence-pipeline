@@ -103,7 +103,8 @@ Two hooks make the failure edge cases repeatable in front of a reviewer instead 
 ?fail=timeout&times=2     time out twice, then succeed        (EC-3)
 ?fail=429&times=1         rate-limit once, honour Retry-After (EC-6)
 ?fail=malformed           return something unparseable        (EC-4)
-?fail=401                 credential death                    (I)
+?fail=auth                credential death, a real 401        (I)
+?fail=500                 a plain server error
 ?reset=1                  clear the counter
 ```
 
@@ -130,7 +131,7 @@ node 05_Test_Evidence/run-edge-cases.mjs 7 14
 scenarios the brief names, plus business rule 7. `run-hardening.mjs` attacks the contract instead
 of the logic: authentication on every endpoint, malformed bodies, unknown ids, hostile strings, an
 over-cap CSV, Arabic input, the four refusal paths on replay, audit-trail completeness, and a sweep
-of every workflow's errored executions. It found four defects the fourteen could not reach - see
+of every workflow's errored executions. It found six defects the fourteen could not reach - see
 [../05_Test_Evidence/HARDENING.md](../05_Test_Evidence/HARDENING.md). Both share
 `05_Test_Evidence/_harness.mjs`, so neither can drift away from the other's understanding of the
 instance.

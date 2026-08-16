@@ -1,4 +1,6 @@
 {
+  "run_id": "hardening-20260816T123444",
+  "finished_at": "2026-08-16T12:34:44.218Z",
   "instance": "https://moamen.dsoqi.online",
   "suite": "Hardening",
   "results": [
@@ -88,7 +90,7 @@
       "title": "A WhatsApp delivery-status callback is acknowledged and ignored",
       "status": "PASS",
       "detail": "status callback -> 202, lead count unchanged at 19",
-      "secs": 3
+      "secs": 4
     },
     {
       "n": 12,
@@ -168,7 +170,7 @@
       "title": "A CSV with a BOM, CRLF and quoted commas parses correctly",
       "status": "PASS",
       "detail": "BOM stripped, CRLF handled, quoted commas and an embedded newline preserved: \"Hassan, Mahmoud\" / \"Delta Clinics, LLC\"",
-      "secs": 1
+      "secs": 0
     },
     {
       "n": 22,
@@ -183,7 +185,7 @@
       "group": "E",
       "title": "Replaying a dead letter that does not exist is a 404",
       "status": "PASS",
-      "detail": "unknown dlq_id -> 404, \"no dead letter with id dlq-does-not-exist-06096653\"",
+      "detail": "unknown dlq_id -> 404, \"no dead letter with id dlq-does-not-exist-83617611\"",
       "secs": 0
     },
     {
@@ -192,7 +194,7 @@
       "title": "Replaying with no dlq_id at all is a 400",
       "status": "PASS",
       "detail": "missing dlq_id -> 400, \"dlq_id is required\"",
-      "secs": 1
+      "secs": 0
     },
     {
       "n": 25,
@@ -200,7 +202,7 @@
       "title": "A malformed override_json is refused instead of half-applied",
       "status": "PASS",
       "detail": "bad override -> 400, and the dead letter stayed \"open\" rather than being marked handled",
-      "secs": 1
+      "secs": 0
     },
     {
       "n": 26,
@@ -215,8 +217,8 @@
       "group": "E",
       "title": "A permanent Odoo error is classified permanent and never retried",
       "status": "PASS",
-      "detail": "the credential-death injector returns 400; classification of 401 as permanent+critical is covered by the unit suite (dlq rows: 9)",
-      "secs": 1
+      "detail": "the credential-death injector returns a true 401 (\"Simulated bad or expired credential\"); classification of 401 as permanent+critical is covered by scripts/test-errors.js (dlq rows: 9)",
+      "secs": 0
     },
     {
       "n": 28,
@@ -232,7 +234,7 @@
       "title": "The public ops payload does not leak internal addresses",
       "status": "PASS",
       "detail": "manager_email and odoo credentials absent from the 2092-byte public payload",
-      "secs": 1
+      "secs": 0
     },
     {
       "n": 30,

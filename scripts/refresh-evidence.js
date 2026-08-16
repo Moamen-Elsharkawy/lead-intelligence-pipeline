@@ -36,8 +36,16 @@ function refreshEdgeCases() {
   const run = read(artefact);
   const byN = new Map(run.results.map((r) => [r.n, r]));
 
-  const docPath = path.join(ROOT, '05_Test_Evidence/EDGE-CASES.md');
-  let doc = fs.readFileSync(docPath, 'utf8');
+  // readDoc, NOT fs.readFileSync. The helper above exists for exactly this
+  // function and this function was the one place it was not used, which made
+  // the whole script quietly a no-op on a CRLF checkout: `split('\n')` leaves a
+  // trailing `\r` on every line, so the row regex - anchored with `\|$` - never
+  // matched and every row was returned unchanged. The header still updated,
+  // because `.*$` happily eats the `\r`, so a run reported "15/15 passed" and
+  // stamped a fresh run id over a matrix still quoting the previous run. A
+  // generator that half-works is worse than one that fails: this file's whole
+  // claim is that the table IS the test run.
+  let doc = readDoc('05_Test_Evidence/EDGE-CASES.md');
 
   const pass = run.results.filter((r) => r.status === 'PASS').length;
   const soft = run.results.filter((r) => r.status === 'SOFT').length;
@@ -63,7 +71,17 @@ function refreshEdgeCases() {
     return `| **${m[1]}** | ${m[2]} | ${m[3]} | ${mark}${esc(r.detail)} | ${r.secs} |`;
   }).join('\n');
 
-  fs.writeFileSync(docPath, doc);
+  writeDoc('05_Test_Evidence/EDGE-CASES.md', doc);
+
+  // Prove the rows actually moved. Silence was this bug's entire disguise, so
+  // the generator now refuses to report success it cannot demonstrate.
+  const rewritten = readDoc('05_Test_Evidence/EDGE-CASES.md');
+  const missed = run.results.filter((r) => !rewritten.includes(esc(String(r.detail))));
+  if (missed.length) {
+    throw new Error(`refresh-evidence wrote the header but ${missed.length} of ${run.results.length} `
+      + `evidence rows did not land (cases ${missed.map((r) => r.n).join(', ')}). `
+      + `The matrix does not match last-run.json, so it is not evidence.`);
+  }
   return `${pass}/${run.results.length} passed, ${secs}s`;
 }
 

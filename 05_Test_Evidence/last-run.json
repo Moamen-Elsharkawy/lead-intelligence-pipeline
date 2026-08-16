@@ -1,4 +1,6 @@
 {
+  "run_id": "edge-cases-20260816T123329",
+  "finished_at": "2026-08-16T12:33:29.690Z",
   "instance": "https://moamen.dsoqi.online",
   "suite": "Edge cases",
   "results": [
@@ -7,16 +9,16 @@
       "group": "EC",
       "title": "Same person from two sources within 2 minutes -> one opportunity, second merged",
       "status": "PASS",
-      "detail": "two deliveries (LP-20260810-10A936FF, LP-20260810-5DCE5846), one Odoo opportunity #45; second marked merged into LP-20260810-10A936FF, opp count for it = 1",
-      "secs": 13
+      "detail": "two deliveries (LP-20260816-3E4239BD, LP-20260816-C2B50703), one Odoo opportunity #45; second marked merged into LP-20260816-3E4239BD, opp count for it = 1",
+      "secs": 15
     },
     {
       "n": 2,
       "group": "EC",
       "title": "Phone formatted differently in each source -> recognised as one person",
       "status": "PASS",
-      "detail": "\"+20 10114842\" and \"002010114842\" both -> phone_key 2010114842; second merged into opportunity #46",
-      "secs": 13
+      "detail": "\"+20 10129050\" and \"002010129050\" both -> phone_key 2010129050; second merged into opportunity #46",
+      "secs": 12
     },
     {
       "n": 3,
@@ -32,7 +34,7 @@
       "title": "AI returns nothing usable -> lead completes on rules alone",
       "status": "PASS",
       "detail": "ai_status=unavailable, score still 100 (vip), Odoo #48. The AI contributes zero points, so the fallback changed nothing.",
-      "secs": 8
+      "secs": 7
     },
     {
       "n": 5,
@@ -56,14 +58,14 @@
       "title": "CRM write succeeded but the acknowledgement was lost -> repaired, not duplicated",
       "status": "PASS",
       "detail": "ledger rewound to \"claimed\", replayed -> still exactly 1 opportunity (#51); ledger repaired to \"done\" with ref 51",
-      "secs": 15
+      "secs": 17
     },
     {
       "n": 8,
       "group": "EC",
       "title": "The same message is dispatched twice -> sent once",
       "status": "PASS",
-      "detail": "1 message_sent, 1 suppressed on the re-dispatch (\"already sent, provider ref 19fee1877e1cfcff\")",
+      "detail": "1 message_sent, 1 suppressed on the re-dispatch (\"already sent, provider ref 1a00a8ecc8a02271\")",
       "secs": 18
     },
     {
@@ -71,7 +73,7 @@
       "group": "EC",
       "title": "Owner becomes unavailable after assignment -> reassigned by the tick",
       "status": "PASS",
-      "detail": "owner sales-01 marked unavailable -> tick reassigned LP-20260810-700FD20C to sales-03 (rung 2)",
+      "detail": "owner sales-01 marked unavailable -> tick reassigned LP-20260816-F60195B2 to sales-03 (rung 2)",
       "secs": 9
     },
     {
@@ -80,15 +82,15 @@
       "title": "Opt-out lands while a follow-up is scheduled -> the follow-up never goes out",
       "status": "PASS",
       "detail": "4 job(s) cancelled (opted_out), consent=denied, no follow-up sent, Odoo opportunity active=false",
-      "secs": 18
+      "secs": 16
     },
     {
       "n": 11,
       "group": "EC",
       "title": "The booking webhook is delivered twice -> booked once",
       "status": "PASS",
-      "detail": "two deliveries of bk_05914842_dup: first applied (stage \"Meeting Booked\"), second answered 200 duplicate:true; 1 audit event",
-      "secs": 7
+      "detail": "two deliveries of bk_83429050_dup: first applied (stage \"Meeting Booked\"), second answered 200 duplicate:true; 1 audit event",
+      "secs": 8
     },
     {
       "n": 12,
@@ -103,7 +105,7 @@
       "group": "EC",
       "title": "One corrupted row in a CSV -> quarantined alone, the rest import",
       "status": "PASS",
-      "detail": "4 rows in: 2 imported (LP-20260810-BD831EE4, LP-20260810-6A292EC4), 2 quarantined - \"line 3: expected 8 columns, found 3\" / \"line 5: no valid email and no valid phone - nothing to contact\"; 2 dead letter(s) hold the original row text",
+      "detail": "4 rows in: 2 imported (LP-20260816-B5652DE1, LP-20260816-F4547895), 2 quarantined - \"line 3: expected 8 columns, found 3\" / \"line 5: no valid email and no valid phone - nothing to contact\"; 2 dead letter(s) hold the original row text",
       "secs": 2
     },
     {
@@ -119,8 +121,8 @@
       "group": "EC",
       "title": "Business rule 7: no sales action within the SLA -> escalated and reassigned",
       "status": "PASS",
-      "detail": "timer scheduled at +1798s (rule says 1800); on breach: audit \"sla step 0 -> sent\", job state \"sent\", owner was sales-01 at stage \"Qualified\"",
-      "secs": 9
+      "detail": "timer scheduled at +1799s (rule says 1800); on breach: audit \"sla step 0 -> sent\", job state \"sent\", owner was sales-01 at stage \"Qualified\"",
+      "secs": 8
     }
   ]
 }

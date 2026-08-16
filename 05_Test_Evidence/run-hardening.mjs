@@ -435,11 +435,30 @@ test(26, 'E', 'A dead letter already handled is refused a second time', async ()
 
 test(27, 'E', 'A permanent Odoo error is classified permanent and never retried', async () => {
   const before = (await rows('lp_dlq')).length;
-  const r = await hook('lp-mock-enrich', {}, { query: '?fail=401' });
-  if (r.status < 400) throw new Error(`the 401 injector answered ${r.status}`);
-  // The classification itself is unit-tested; here we only prove the injector
-  // is real and that a 401 is not silently turned into a success.
-  return `the credential-death injector returns ${r.status}; classification of 401 as permanent+critical is covered by the unit suite (dlq rows: ${before})`;
+
+  // `auth` is the injector's value for a simulated credential death; `401` is
+  // not a value it has ever supported. This check sent `?fail=401` from the day
+  // it was written, which routed to the unknown-chaos branch - and that branch
+  // answers 400, which satisfied the old `status < 400` assertion. So it passed
+  // for two runs while testing nothing it claimed to test.
+  //
+  // The unique key matters just as much. The injector counts calls per
+  // `mock:<service>:<key>:<fail>` in a data table, and serves the failure only
+  // while the count is inside the requested `times`. With a shared default key
+  // the counter survives between runs, so this call returned a real 400 on the
+  // first ever run and a plain 200 on every one after - a check that silently
+  // changes meaning depending on whether anyone ran demo-reset first is not a
+  // check. A per-run key makes it idempotent.
+  const key = `hardening-27-${Date.now()}`;
+  const r = await hook('lp-mock-enrich', {}, { query: `?fail=auth&key=${key}` });
+
+  // Assert the exact status, not merely "an error". The weak assertion is what
+  // let the wrong parameter hide for two runs.
+  if (r.status !== 401) throw new Error(`the credential-death injector answered ${r.status}, expected 401`);
+  if (!/unauthor/i.test(JSON.stringify(r.json || r.text || ''))) {
+    throw new Error(`401 body did not read as an auth failure: ${JSON.stringify(r.json || '').slice(0, 120)}`);
+  }
+  return `the credential-death injector returns a true 401 ("${String(r.json?.message || '').slice(0, 48)}"); classification of 401 as permanent+critical is covered by scripts/test-errors.js (dlq rows: ${before})`;
 });
 
 // ===========================================================================

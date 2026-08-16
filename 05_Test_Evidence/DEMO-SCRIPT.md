@@ -120,7 +120,7 @@ Now kill the AI instead (`?fail=malformed`) and send another:
 Then the one that is not obvious:
 
 ```bash
-# lp_config: enrich_chaos = ?fail=401
+# lp_config: enrich_chaos = ?fail=auth
 ```
 
 > "401 is **never retried**. It is classified as a dead credential, dead-lettered at critical, and

@@ -3,7 +3,7 @@
 Fifteen rows: cases 1-14 are the mandated edge cases, case 15 is business rule 7 (the 30-minute
 SLA), tested here because it fails the same way an edge case does.
 
-**Latest run: 15 passed, 0 soft, 0 failed.** 180 seconds of wall clock.
+**Latest run: 15 passed, 0 soft, 0 failed.** Run id `edge-cases-20260816T123329`, 2026-08-16 12:33 UTC, 180 seconds of wall clock.
 Raw output: [last-run.json](last-run.json).
 
 That run was from a **clean slate**: the eight data tables recreated, and a fresh Odoo sandbox
@@ -29,7 +29,7 @@ result and the execution is logged successful.
 Two design choices make the fourteen reproducible rather than anecdotal:
 
 - **`enrich_chaos`** - a config row appended to the enrichment URL (`?fail=timeout&times=2`,
-  `?fail=429`, `?fail=malformed`, `?fail=401`, `?reset=1`). The counter is real, stored in `lp_idem`
+  `?fail=429`, `?fail=malformed`, `?fail=auth`, `?reset=1`). The counter is real, stored in `lp_idem`
   under `scope='mock'`, so the third call genuinely behaves differently from the first two.
 - **`POST /webhook/lp-tick`** - runs the five-minute scheduler now, so a 30-minute SLA or a
   three-day follow-up is demonstrated in seconds by winding a `due_at` back and ticking.
@@ -51,19 +51,19 @@ the subject line and in the audit row (`intended_to`, `actual_to`, `redirected: 
 
 | # | Mandated edge case | Mechanism that handles it | Evidence from the run | s |
 |---|---|---|---|---|
-| **1** | Same lead from WhatsApp and the website within 2 minutes | Two keys: `idem_key` per delivery, `person_key` per human. Both deliveries accepted; the second resolves to a high-confidence duplicate and merges | two deliveries (LP-20260810-14FE9EA8, LP-20260810-EE136E5B), one Odoo opportunity #45; second marked merged into LP-20260810-14FE9EA8, opp count for it = 1 | 12 |
-| **2** | A valid phone in two different formats | `phoneKey()` - digits only, trailing 10 - applied before any comparison. Ported from a parser that deduped 23.5k real contacts | "+20 10189170" and "002010189170" both -> phone_key 2010189170; second merged into opportunity #46 | 13 |
-| **3** | Enrichment times out twice, then succeeds | `retryOnFail` 3 × bounded backoff, 8s timeout, `continueRegularOutput` so a dead provider costs precision not a lead | enrichment status "ok", lead still scored 100 and reached Odoo #47 | 28 |
-| **4** | The AI returns an empty or malformed response | Schema validation on return, then a deterministic fallback. **The AI contributes zero points** | ai_status=unavailable, score still 100 (vip), Odoo #48. The AI contributes zero points, so the fallback changed nothing. | 8 |
-| **5** | AI says "high potential", the rules say low value | `materiallyConflicts`: confidence ≥ 0.7 **and** band distance ≥ 2. Adjacent disagreement is expected noise and is ignored | rules said unqualified (38), model said high at 0.95 -> manual_review, Odoo stage "Manual Review" | 6 |
-| **6** | The CRM API returns 429 Rate Limit | Classified transient, honours `Retry-After`, exponential backoff with jitter capped at 8s, max 3 tries | 429 absorbed, enrichment ok, lead scored 100 and reached Odoo #50 in 9s | 10 |
-| **7** | CRM create succeeded, the workflow timed out before the acknowledgement | The claim is written *before* the call, so a `claimed` row means "something may have happened". Replay searches Odoo by `x_lp_lead_id` before acting | ledger rewound to "claimed", replayed -> still exactly 1 opportunity (#51); ledger repaired to "done" with ref 51 | 16 |
-| **8** | A WhatsApp send is retried after a transient error | The send is claimed under `message:<lead_uid>:<template>:<step>` before dispatch. LP-92 is the only outbound path | 1 message_sent, 1 suppressed on the re-dispatch ("already sent, provider ref 19feddfaaf91c2de") | 16 |
-| **9** | A salesperson becomes unavailable after assignment | Nothing errors when someone goes on leave, which is the problem. The tick's owner-health scan finds their leads and reassigns | owner sales-01 marked unavailable -> tick reassigned LP-20260810-CABCAAE8 to sales-03 (rung 2) | 9 |
-| **10** | A lead opts out while a follow-up is already scheduled | Follow-ups are queue rows, not `Wait` nodes, so cancellation is a status update. The tick re-reads the stop conditions **immediately before sending** | 4 job(s) cancelled (opted_out), consent=denied, no follow-up sent, Odoo opportunity active=false | 19 |
-| **11** | A booking webhook is delivered twice | Claimed under `booking:<booking_id>` | two deliveries of bk_02189170_dup: first applied (stage "Meeting Booked"), second answered 200 duplicate:true; 1 audit event | 7 |
-| **12** | A manager rejects a VIP after qualification | The VIP gate is a stage with no outbound. `awaiting_approval` and `approval_rejected` are two of LP-92's seven stop conditions | stage before: Awaiting Approval, no message reached the lead; after reject: status=closed, 1 job(s) cancelled, Odoo active=false | 14 |
-| **13** | A corrupted CSV row inside an otherwise valid batch | A real state-machine CSV reader attaching errors **per row**; bad rows quarantined individually with their original text | 4 rows in: 2 imported (LP-20260810-F3D20D0A, LP-20260810-8DFA078E), 2 quarantined - "line 3: expected 8 columns, found 3" / "line 5: no valid email and no valid phone - nothing to contact"; 2 dead letter(s) hold the original row text | 2 |
+| **1** | Same lead from WhatsApp and the website within 2 minutes | Two keys: `idem_key` per delivery, `person_key` per human. Both deliveries accepted; the second resolves to a high-confidence duplicate and merges | two deliveries (LP-20260816-3E4239BD, LP-20260816-C2B50703), one Odoo opportunity #45; second marked merged into LP-20260816-3E4239BD, opp count for it = 1 | 15 |
+| **2** | A valid phone in two different formats | `phoneKey()` - digits only, trailing 10 - applied before any comparison. Ported from a parser that deduped 23.5k real contacts | "+20 10129050" and "002010129050" both -> phone_key 2010129050; second merged into opportunity #46 | 12 |
+| **3** | Enrichment times out twice, then succeeds | `retryOnFail` 3 × bounded backoff, 8s timeout, `continueRegularOutput` so a dead provider costs precision not a lead | enrichment status "ok", lead still scored 100 and reached Odoo #47 | 27 |
+| **4** | The AI returns an empty or malformed response | Schema validation on return, then a deterministic fallback. **The AI contributes zero points** | ai_status=unavailable, score still 100 (vip), Odoo #48. The AI contributes zero points, so the fallback changed nothing. | 7 |
+| **5** | AI says "high potential", the rules say low value | `materiallyConflicts`: confidence ≥ 0.7 **and** band distance ≥ 2. Adjacent disagreement is expected noise and is ignored | rules said unqualified (38), model said high at 0.95 -> manual_review, Odoo stage "Manual Review" | 5 |
+| **6** | The CRM API returns 429 Rate Limit | Classified transient, honours `Retry-After`, exponential backoff with jitter capped at 8s, max 3 tries | 429 absorbed, enrichment ok, lead scored 100 and reached Odoo #50 in 7s | 7 |
+| **7** | CRM create succeeded, the workflow timed out before the acknowledgement | The claim is written *before* the call, so a `claimed` row means "something may have happened". Replay searches Odoo by `x_lp_lead_id` before acting | ledger rewound to "claimed", replayed -> still exactly 1 opportunity (#51); ledger repaired to "done" with ref 51 | 17 |
+| **8** | A WhatsApp send is retried after a transient error | The send is claimed under `message:<lead_uid>:<template>:<step>` before dispatch. LP-92 is the only outbound path | 1 message_sent, 1 suppressed on the re-dispatch ("already sent, provider ref 1a00a8ecc8a02271") | 18 |
+| **9** | A salesperson becomes unavailable after assignment | Nothing errors when someone goes on leave, which is the problem. The tick's owner-health scan finds their leads and reassigns | owner sales-01 marked unavailable -> tick reassigned LP-20260816-F60195B2 to sales-03 (rung 2) | 9 |
+| **10** | A lead opts out while a follow-up is already scheduled | Follow-ups are queue rows, not `Wait` nodes, so cancellation is a status update. The tick re-reads the stop conditions **immediately before sending** | 4 job(s) cancelled (opted_out), consent=denied, no follow-up sent, Odoo opportunity active=false | 16 |
+| **11** | A booking webhook is delivered twice | Claimed under `booking:<booking_id>` | two deliveries of bk_83429050_dup: first applied (stage "Meeting Booked"), second answered 200 duplicate:true; 1 audit event | 8 |
+| **12** | A manager rejects a VIP after qualification | The VIP gate is a stage with no outbound. `awaiting_approval` and `approval_rejected` are two of LP-92's seven stop conditions | stage before: Awaiting Approval, no message reached the lead; after reject: status=closed, 1 job(s) cancelled, Odoo active=false | 13 |
+| **13** | A corrupted CSV row inside an otherwise valid batch | A real state-machine CSV reader attaching errors **per row**; bad rows quarantined individually with their original text | 4 rows in: 2 imported (LP-20260816-B5652DE1, LP-20260816-F4547895), 2 quarantined - "line 3: expected 8 columns, found 3" / "line 5: no valid email and no valid phone - nothing to contact"; 2 dead letter(s) hold the original row text | 2 |
 | **14** | A workflow is manually re-run after partial success | Replay reads the ledger first and re-dispatches only what is missing | replay reported odoo_already_created=true, skipped ["odoo_upsert","message"]; opportunity count unchanged at 1 (#59); dead letter now "replayed" | 16 |
 | **15** | *(business rule 7)* No sales action within the 30-minute SLA | An `sla` job armed at +1800s on every qualified assignment | timer scheduled at +1799s (rule says 1800); on breach: audit "sla step 0 -> sent", job state "sent", owner was sales-01 at stage "Qualified" | 8 |
 
