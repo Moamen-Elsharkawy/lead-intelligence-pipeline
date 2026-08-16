@@ -67,26 +67,19 @@ const err = ex.error || e.error || {};
 const message = String(err.message || err.description || 'unknown error').slice(0, 800);
 const nodeName = String(err.node?.name || ex.lastNodeExecuted || 'unknown node');
 const wfName = String(wf.name || 'unknown workflow');
-const sig = (message + ' ' + String(err.name || '')).toLowerCase();
-
 // --- classification ------------------------------------------------------
-// The three classes exist because they have three different responses:
-// transient means wait, credential means a human must log in somewhere, and
-// permanent means the input or the code is wrong and retrying is pointless.
-let error_class = 'permanent';
-let severity = 'error';
-
-if (/unauthori[sz]ed|\\b401\\b|\\b403\\b|forbidden|invalid.{0,12}(credential|api key|token)|token.{0,12}expired|refresh token|authentication failed|access denied/i.test(sig)) {
-  error_class = 'credential';
-  // Escalated on sight. On this instance an expired credential has frozen a
-  // pipeline five separate times while every workflow still reported
-  // active:true, once for 13 days and once for 25. It is never a low-priority
-  // error here.
-  severity = 'critical';
-} else if (/econnrefused|etimedout|enotfound|socket hang up|network|timeout|\\b429\\b|\\b50[234]\\b|rate.?limit|temporarily unavailable|serializationfailure|could not serialize/i.test(sig)) {
-  error_class = 'transient';
-  severity = 'warning';
-}
+// The rules live in _shared/constants.js, not here. They were inline, and that
+// is exactly why they shipped wrong: a Code node's source is the one place in
+// this project that no test could reach, so a pattern that never matched
+// n8n's own "Task request timed out after 60 seconds" went unnoticed until it
+// misclassified two real production failures as \`permanent\`.
+// Unit tests: scripts/test-errors.js.
+//
+// Credential errors are escalated on sight. On this instance an expired
+// credential has frozen a pipeline five separate times while every workflow
+// still reported active:true, once for 13 days and once for 25. It is never a
+// low-priority error here.
+const { error_class, severity } = C.classifyError(message, err.name);
 
 // --- who it happened to --------------------------------------------------
 // The lead id is the thread that ties an error back to a customer. It can
@@ -115,6 +108,30 @@ const dlq_id = 'dlq-' + C.stableHash(wfName + '|' + nodeName + '|' + normalised 
 
 const now = Math.floor(Date.now() / 1000);
 
+// --- the replay breadcrumb -----------------------------------------------
+// Informational only: the replay endpoint branches on whether the row carries
+// a lead, not on this field. It is what a human reads at 9am, which is exactly
+// why it has to be true.
+//
+// It used to be the literal \`{ workflow: 'LP-02 Qualify', requires: 'lead_json' }\`
+// on EVERY dead letter, whatever had failed. A tick-queue failure carrying no
+// lead at all still advised re-qualifying a lead - pointing the operator at a
+// workflow that could not have been the cause and could not be the cure. A
+// hint that is confidently wrong costs more than no hint.
+//
+// Where there IS a lead, LP-02 genuinely is the re-entry point: the replay
+// reads the idempotency ledger first and skips every scope already completed,
+// so re-entering at qualify cannot double-write to Odoo. Where there is no
+// lead, nothing about this failure is replayable through the pipeline, and
+// saying so is the useful answer.
+const replay = lead_uid
+  ? { workflow: 'LP-02 Qualify', requires: 'lead_json' }
+  : { workflow: null,
+      requires: null,
+      note: 'not tied to a single lead, so there is nothing to replay through the pipeline. '
+        + 'Fix the cause and let the schedule pick the work up again, or resubmit the '
+        + 'original request through the intake endpoint.' };
+
 return [{ json: {
   dlq_id,
   lead_uid,
@@ -130,7 +147,7 @@ return [{ json: {
   retry_of: String(ex.retryOf || ''),
   now,
   payload_json: JSON.stringify({
-    replay: { workflow: 'LP-02 Qualify', requires: 'lead_json' },
+    replay,
     execution_url: ex.url || '',
     node: nodeName,
     error_name: err.name || '',

@@ -478,6 +478,47 @@ function backoffMs(attempt) {
 }
 
 // ---------------------------------------------------------------------------
+// 11b. Error classification
+// ---------------------------------------------------------------------------
+// Three classes, because they have three different responses: `transient`
+// means wait, `credential` means a human has to log in somewhere, `permanent`
+// means the input or the code is wrong and retrying is pointless.
+//
+// This lived inline in LP-05's Code node, which is precisely why it shipped
+// wrong. n8n's task runner fails with "Task request timed out after 60
+// seconds" - two words - and the transient pattern only had `timeout` and
+// `etimedout`, so the single most retryable failure on this instance fell
+// through to the `permanent` default. That misclassification alerts on
+// something that should retry quietly AND tells the operator reading the dead
+// letter not to retry, which is the opposite of the truth.
+//
+// It is here now for the same reason the scorer and the intake are here: the
+// code most likely to be wrong is the code that has to be unit-testable
+// outside n8n. See scripts/test-errors.js.
+
+const ERROR_PATTERNS = {
+  credential: /unauthori[sz]ed|\b401\b|\b403\b|forbidden|invalid.{0,12}(credential|api key|token)|token.{0,12}expired|refresh token|authentication failed|access denied/i,
+  // `timed\s*out` is NOT redundant beside `timeout`: they are different
+  // strings, and the two-word form is the one n8n's own runner emits.
+  transient: /econnrefused|etimedout|enotfound|socket hang up|network|timeout|timed\s*out|\b429\b|\b50[234]\b|rate.?limit|temporarily unavailable|serializationfailure|could not serialize/i,
+};
+
+/**
+ * @param {string} message  the error message
+ * @param {string} name     the error name/type, if any
+ * @returns {{error_class: 'credential'|'transient'|'permanent', severity: 'critical'|'warning'|'error'}}
+ */
+function classifyError(message, name) {
+  const sig = (String(message || '') + ' ' + String(name || '')).toLowerCase();
+  // Credential is tested first and wins ties. A 401 that also mentions a
+  // timeout is a dead credential, not a slow network, and treating it as
+  // transient is how a frozen pipeline stays quiet for 25 days.
+  if (ERROR_PATTERNS.credential.test(sig)) return { error_class: 'credential', severity: 'critical' };
+  if (ERROR_PATTERNS.transient.test(sig)) return { error_class: 'transient', severity: 'warning' };
+  return { error_class: 'permanent', severity: 'error' };
+}
+
+// ---------------------------------------------------------------------------
 // 12. Data tables - THE ONLY definition of the schema
 // ---------------------------------------------------------------------------
 // Eight tables. Column types are string | number | boolean | date; there is no
@@ -578,7 +619,8 @@ const C = {
   ADJACENT_MARKETS, HIGH_VALUE_SERVICES, MID_VALUE_SERVICES, DISQUALIFY_PATTERNS,
   BANDS, bandFor, BAND_ORDINAL, AI_SCHEMA, AI_IMPLIED_BAND, CONFLICT, materiallyConflicts,
   ASSIGN_RUNGS, pickOwner, STAGES, STAGES_TO_CREATE, STAGE_TRANSITIONS, LOST_REASONS,
-  CADENCE, SLA_SECONDS, STOP_REASONS, RETRY, backoffMs, TABLES, AUDIT_TYPES,
+  CADENCE, SLA_SECONDS, STOP_REASONS, RETRY, backoffMs, ERROR_PATTERNS, classifyError,
+  TABLES, AUDIT_TYPES,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = C;

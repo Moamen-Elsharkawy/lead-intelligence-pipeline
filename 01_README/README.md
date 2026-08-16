@@ -6,8 +6,6 @@ normalised, validated, de-duplicated, enriched, scored by deterministic rules, c
 separately by an LLM, routed to a salesperson, written to Odoo, followed up on a schedule, and
 audited end to end. Failures are classified, dead-lettered and replayable.
 
-Built for the Automation Engineer technical assessment.
-
 ---
 
 ## The one-paragraph version
@@ -92,6 +90,7 @@ Full detail in [RUNNING.md](RUNNING.md).
 ```bash
 node scripts/test-scoring.js                 #  61 unit assertions, no network
 node scripts/test-intake.js                  #  97 unit assertions, no network
+node scripts/test-errors.js                  #  36 unit assertions, no network
 
 node scripts/demo-reset.js you@example.com   # back to a known-empty state
 node 05_Test_Evidence/run-edge-cases.mjs     #  15 mandated edge cases, live

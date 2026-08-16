@@ -44,8 +44,15 @@ function refreshEdgeCases() {
   const fail = run.results.filter((r) => r.status === 'FAIL').length;
   const secs = run.results.reduce((s, r) => s + r.secs, 0);
 
+  // Quote the run id only when the artefact actually carries one. Interpolating
+  // a missing field printed "Run id `undefined`" into the evidence header and
+  // left it there. A generator that cannot prove a value should say nothing
+  // rather than say `undefined` with the same confidence as a real id.
+  const stamp = run.run_id
+    ? `Run id \`${run.run_id}\`${run.finished_at ? `, ${run.finished_at.slice(0, 16).replace('T', ' ')} UTC` : ''}, `
+    : '';
   doc = doc.replace(/^\*\*Latest run: .*$/m,
-    `**Latest run: ${pass} passed, ${soft} soft, ${fail} failed.** Run id \`${run.run_id}\`, ${secs} seconds of wall clock.`);
+    `**Latest run: ${pass} passed, ${soft} soft, ${fail} failed.** ${stamp}${secs} seconds of wall clock.`);
 
   doc = doc.split('\n').map((line) => {
     const m = line.match(/^\| \*\*(\d+)\*\* \| (.*?) \| (.*?) \| (.*?) \| (\d+) \|$/);

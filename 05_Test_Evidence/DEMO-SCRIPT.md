@@ -245,7 +245,7 @@ Then the limitations, unprompted:
 
 ## 10. Close (30s)
 
-> "Eleven workflows, 212 nodes, 138 unit tests, fifteen live edge-case tests, and the whole thing
+> "Eleven workflows, 212 nodes, 194 unit tests, fifteen live edge-case tests, and the whole thing
 > runs at about seven cents per thousand classified leads. If you want it against your own Odoo, it
 > is three lines in the setup workflow's config node and one run - every Odoo call already goes
 > through a single gateway."

@@ -117,7 +117,8 @@ be demonstrated in seconds by winding a `due_at` back and ticking.
 
 ```bash
 node scripts/test-scoring.js               # 61 assertions, no network
-node scripts/test-intake.js                # 77 assertions, no network
+node scripts/test-intake.js                # 97 assertions, no network
+node scripts/test-errors.js                # 36 assertions, no network
 
 node scripts/demo-reset.js you@example.com # OPTIONAL: back to a known-empty state
 node 05_Test_Evidence/run-edge-cases.mjs   # the 15 mandated cases, live

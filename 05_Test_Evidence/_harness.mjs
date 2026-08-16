@@ -217,9 +217,17 @@ export async function runSuite({ title, cases, only, outFile }) {
   }
 
   if (outFile) {
+    // `run_id` and `finished_at` are written because the evidence generator
+    // renders them into the doc header. They were not, and refresh-evidence.js
+    // duly published the literal string "Run id `undefined`" at the top of the
+    // test evidence - the one document whose entire purpose is to be checkable.
+    // A generated claim is only as trustworthy as the artefact behind it, so
+    // the artefact has to carry every field the claim quotes.
+    const finished_at = new Date().toISOString();
+    const run_id = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${finished_at.replace(/[-:]/g, '').replace(/\..+$/, '')}`;
     fs.writeFileSync(path.join(ROOT, outFile),
-      JSON.stringify({ instance: BASE, suite: title, results }, null, 2) + '\n');
-    console.log(`Full detail written to ${outFile}`);
+      JSON.stringify({ run_id, finished_at, instance: BASE, suite: title, results }, null, 2) + '\n');
+    console.log(`Full detail written to ${outFile}  (run ${run_id})`);
   }
   return fail;
 }

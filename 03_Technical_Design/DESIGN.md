@@ -7,7 +7,7 @@ the *what* is in the workflow JSON and it is heavily commented.
 |---|---|
 | Stack | n8n 2.69.0 self-hosted, Odoo saas~19.3 (external API over JSON-RPC), OpenRouter |
 | State | eight n8n Data Tables (`lp_*`) |
-| Size | 11 workflows, 212 nodes, 158 unit assertions, 47 live tests (15 edge cases + 32 hardening) |
+| Size | 11 workflows, 212 nodes, 194 unit assertions, 47 live tests (15 edge cases + 32 hardening) |
 | Running cost | ~$0.07 per 1,000 classified leads (calculated, see §5). Everything else is free |
 
 **Contents.** [1 Assumptions](#1-assumptions) · [2 Architecture](#2-architecture-overview) ·
@@ -638,11 +638,19 @@ queue.
 
 Three layers, and the top one is the only one that proves anything about the deployed system.
 
-### Unit — 138 assertions, no network, ~1 second
+### Unit — 194 assertions, no network, ~1 second
 
-`node scripts/test-scoring.js` (61) and `node scripts/test-intake.js` (77) run the **same source**
-the Code nodes run: the shared runtime is concatenated into each node at build time, so there is no
-hand-copied logic to drift away from its tests.
+`node scripts/test-scoring.js` (61), `node scripts/test-intake.js` (97) and
+`node scripts/test-errors.js` (36) run the **same source** the Code nodes run: the shared runtime is
+concatenated into each node at build time, so there is no hand-copied logic to drift away from its
+tests.
+
+That guarantee only covers code that actually lives in the shared runtime, which is why
+`test-errors.js` exists. The error classifier was written inline in LP-05's Code node, outside the
+prelude and therefore outside every test — and it shipped with a pattern that never matched n8n's own
+`Task request timed out after 60 seconds`, so the most retryable failure the instance produces was
+classified `permanent`. It misclassified two real failures before anyone noticed. The classifier now
+sits in `_shared/constants.js` beside the scorer and the intake, for the same reason they are there.
 
 They cover phone and email normalisation, three-valued consent, the four validation outcomes,
 idempotency keys (delivery versus person), service and urgency and budget derivation, CSV parsing

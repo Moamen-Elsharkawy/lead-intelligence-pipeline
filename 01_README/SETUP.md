@@ -147,7 +147,8 @@ remember to switch on is not a safety net.
 
 ```bash
 node scripts/test-scoring.js                  # 58 tests, no network
-node scripts/test-intake.js                   # 77 tests, no network
+node scripts/test-intake.js                   # 97 tests, no network
+node scripts/test-errors.js                   # 36 tests, no network
 node 05_Test_Evidence/run-edge-cases.mjs      # 15 cases against the live pipeline
 ```
 

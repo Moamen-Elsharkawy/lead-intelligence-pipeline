@@ -1,6 +1,9 @@
-# Test Evidence: the fourteen mandated edge cases
+# Test Evidence: the fourteen mandated edge cases, and the SLA rule
 
-**Latest run: 15 passed, 0 soft, 0 failed.** Run id `undefined`, 180 seconds of wall clock.
+Fifteen rows: cases 1-14 are the mandated edge cases, case 15 is business rule 7 (the 30-minute
+SLA), tested here because it fails the same way an edge case does.
+
+**Latest run: 15 passed, 0 soft, 0 failed.** 180 seconds of wall clock.
 Raw output: [last-run.json](last-run.json).
 
 That run was from a **clean slate**: the eight data tables recreated, and a fresh Odoo sandbox

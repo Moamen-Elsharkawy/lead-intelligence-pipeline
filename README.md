@@ -33,7 +33,7 @@ Eleven of the fourteen edge cases fall out of that rather than being special-cas
 | | |
 |---|---|
 | Workflows | 11, 212 nodes, all validating clean |
-| Tests | 158 unit assertions + 15 live edge-case tests + 32 live hardening checks |
+| Tests | 194 unit assertions + 15 live edge-case tests + 32 live hardening checks |
 | State | 8 n8n Data Tables |
 | Running cost | ~$0.07 per 1,000 classified leads |
 | Secrets in this repo | none - credentials are referenced by name, values live in n8n and a git-ignored `.env` |

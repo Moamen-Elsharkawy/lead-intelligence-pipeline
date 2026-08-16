@@ -109,8 +109,16 @@ return batch.map(j => ({ json: {
   deferred: due.length - batch.length,
 } }));
 `,
+      retry: { tries: 2, waitMs: 3000 },
       notes: 'Returning [] on an empty queue ends the branch silently. A scheduled workflow that\n'
-        + 'logs "nothing to do" every 5 minutes buries the runs that did something.',
+        + 'logs "nothing to do" every 5 minutes buries the runs that did something.\n'
+        + '\n'
+        + 'retryOnFail is here for the task runner, not for the logic - this node cannot fail\n'
+        + 'on its own data. The schedule fans out into four branches at once and every Code\n'
+        + 'node carries the whole inlined shared runtime, so under contention n8n\'s runner can\n'
+        + 'exceed its 60s request budget and throw "Task request timed out after 60 seconds"\n'
+        + 'before a line of this executes. Observed twice in six days on a 5-minute schedule.\n'
+        + 'One retry clears it; without it the tick dead-letters a batch it never looked at.',
     },
 
     {
