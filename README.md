@@ -1,17 +1,26 @@
 # Lead Intelligence Pipeline
 
+## Project status and evidence
+
+**Tested reference.** A deployed test reference, subsequently deactivated; not current client production.
+
+**My contribution:** Implemented intake normalization, deterministic scoring, separate LLM classification, workload routing, SLA escalation and a claim ledger with dead-letter replay.
+
+**Verification:** 194 local assertions passed on 20 October 2026. Historical deployed-test evidence records 15/15 edge cases and 32 hardening checks.
+
+
 A multi-source lead-processing pipeline in **n8n**, with **Odoo** as the central CRM and system of
 record. Website form, WhatsApp and CSV import in; normalised, validated, de-duplicated, enriched,
 scored by deterministic rules, classified separately by an LLM, routed by workload, written to Odoo,
 followed up on a schedule, and audited end to end. Failures are classified, dead-lettered and
 replayable.
 
-**15 / 15 mandated edge cases pass** against a live deployment, from a clean slate.
+**Historical deployed-test evidence:** 15 / 15 mandated edge cases passed from a clean slate.
 
 ---
 
 **The one idea:** every side effect is claimed in a ledger *before* it happens. A duplicate webhook,
-a retried send, a lost acknowledgement and a manual re-run all converge on the same outcome, because
+the tested retry, acknowledgement-loss and manual-replay scenarios converge on the expected outcome, because
 the question asked before acting is never "did this succeed?" but "has this already been claimed?".
 Eleven of the fourteen edge cases fall out of that rather than being special-cased.
 
